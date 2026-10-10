@@ -1,0 +1,27 @@
+# Local Python environment and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local secrets and machine files
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.streamlit/secrets.toml
+
+# Downloaded market data (keep application source files)
+/data/*
+!/data/*.py
+!/data/echarts.min.js
+
+# Generated research artifacts
+/reports/
+/mlruns/
+/backtest/
+/Users/
