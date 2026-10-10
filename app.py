@@ -514,13 +514,15 @@ if active_csv and os.path.exists(active_csv):
 
         # 2. 季度收益率透视表 (Q1 ~ Q4)
         st.markdown("#### 2️⃣ 季度收益率矩阵 (Quarterly Returns)")
+        yearly_map = {int(yr): val for yr, val in zip(y_summary_df["年份"], y_summary_df["策略收益率"])}
+        
         q_pivot = p_df.groupby([p_df["year"], p_df["quarter"]])["return"].apply(
             lambda x: (1 + x).cumprod().iloc[-1] - 1
         ).unstack()
         q_pivot.columns = [f"第{c}季度 (Q{c})" for c in q_pivot.columns]
         
-        # 添加全年度累计
-        q_pivot["年度合计"] = y_summary_df.set_index("年份")["策略收益率"].astype(float)
+        # 添加全年度累计 (精确对齐年份索引)
+        q_pivot["年度合计"] = q_pivot.index.map(yearly_map)
         
         # 格式化百分比并生成高亮样式
         def format_pct(val):
@@ -540,7 +542,7 @@ if active_csv and os.path.exists(active_csv):
             lambda x: (1 + x).cumprod().iloc[-1] - 1
         ).unstack()
         m_pivot.columns = [f"{c}月" for c in m_pivot.columns]
-        m_pivot["年度合计"] = y_summary_df.set_index("年份")["策略收益率"].astype(float)
+        m_pivot["年度合计"] = m_pivot.index.map(yearly_map)
 
         m_display = m_pivot.applymap(format_pct)
         st.write(m_display.to_html(escape=False), unsafe_allow_html=True)
