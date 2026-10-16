@@ -29,7 +29,6 @@ def get_all_accounts():
         except Exception:
             pass
 
-    # 默认提供两个经典模拟仓位: 10万元初始金
     default_accounts = {
         "模拟实盘 1 号 (创业板+红利低波)": {
             "initial_capital": 100000.0,
@@ -46,8 +45,31 @@ def get_all_accounts():
             "cash_available": 1484.1,
             "created_at": "2026-10-10",
             "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        },
+        "模拟实盘 3 号 (红利低波ERP择时高抛低吸)": {
+            "initial_capital": 100000.0,
+            "holding_symbol": "sh512890",
+            "holding_amount": 61500,
+            "bond_symbol": "sh511260",
+            "bond_amount": 0,
+            "cash_available": 25031.5,
+            "strategy_type": "dividend_erp",
+            "auto_trade": True,
+            "created_at": "2026-10-16",
+            "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
     }
+    if SIM_ACCOUNTS_FILE.exists():
+        try:
+            with open(SIM_ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+                accs = json.load(f)
+            if "模拟实盘 3 号 (红利低波ERP择时高抛低吸)" not in accs:
+                accs["模拟实盘 3 号 (红利低波ERP择时高抛低吸)"] = default_accounts["模拟实盘 3 号 (红利低波ERP择时高抛低吸)"]
+                save_all_accounts(accs)
+            return accs
+        except Exception:
+            pass
+
     save_all_accounts(default_accounts)
     return default_accounts
 
@@ -342,6 +364,332 @@ def execute_simulated_rebalance(
         "plan": plan
     }
 
+def generate_dividend_rebalance_plan(
+    account_name="模拟实盘 3 号 (红利低波ERP择时高抛低吸)",
+    etf_symbol="sh512890",
+    bond_symbol="sh511260"
+):
+    """
+    根据红利低波策略二 (ERP 股债利差估值大波段高抛低吸) 生成每日盘中/尾盘调仓执行清单
+    """
+    import pandas as pd
+    from strategies.dividend_lowvol_swing_backtest import load_or_sync_data, compute_indicators
+    from data.realtime_fetcher import fetch_realtime_quotes
+
+    # 1. 抓取标的最新实时行情
+    quotes = fetch_realtime_quotes([etf_symbol, bond_symbol])
+    q_etf = quotes.get(etf_symbol, {})
+    q_bond = quotes.get(bond_symbol, {})
+
+    # 2. 读取历史指标基线
+    raw_df = compute_indicators(load_or_sync_data())
+    last_row = raw_df.iloc[-1]
+
+    # 获取价格
+    hist_close = last_row["close"]
+    cur_etf_price = q_etf.get("price", hist_close)
+    if cur_etf_price <= 0:
+        cur_etf_price = hist_close
+
+    cur_bond_price = q_bond.get("price", last_row.get("bond_close", 135.0))
+    if cur_bond_price <= 0:
+        cur_bond_price = last_row.get("bond_close", 135.0)
+
+    # 动态估算实时 PE 与 ERP
+    price_ratio = (cur_etf_price / hist_close) if hist_close > 0 else 1.0
+    rt_pe = last_row["pe"] * price_ratio
+    rt_rate_10y = last_row["rate_10y"]
+    rt_ey = (1.0 / rt_pe) * 100.0 if rt_pe > 0 else 0.0
+    rt_erp = rt_ey - rt_rate_10y
+
+    # 滚动 250 日分位数测算
+    recent_erp = raw_df["erp"].iloc[-250:].copy()
+    recent_erp_with_rt = pd.concat([recent_erp, pd.Series([rt_erp])])
+    rt_erp_pct = float(pd.Series(recent_erp_with_rt).rank(pct=True).iloc[-1])
+
+    # 3. 策略目标仓位确定
+    # erp_pct <= 0.20 -> 50% 仓位 (估值高位过热，高抛减半)
+    # 0.20 < erp_pct <= 0.35 -> 75% 仓位 (温和高估，中性减至 75%)
+    # erp_pct > 0.35 -> 100% 满仓 (低估极具性价比，低吸满仓)
+    if rt_erp_pct <= 0.20:
+        target_weight = 0.50
+        status_label = "🔥 估值过热区 (ERP ≤ 20%) · 目标仓位 50%"
+        trigger_desc = f"当前 ERP 分位数仅为 {rt_erp_pct*100:.1f}% (低于 20% 高抛阈值)，红利性价比偏低，应将仓位压降至 50%，其余资金配置国债生息避险。"
+    elif rt_erp_pct <= 0.35:
+        target_weight = 0.75
+        status_label = "🟡 估值温和偏高 (20% < ERP ≤ 35%) · 目标仓位 75%"
+        trigger_desc = f"当前 ERP 分位数为 {rt_erp_pct*100:.1f}% (处于 20%~35% 观察带)，建议维持稳健 75% 仓位，保持 25% 现金/国债对冲。"
+    else:
+        target_weight = 1.00
+        status_label = "🟢 极具性价比 (ERP > 35%) · 目标仓位 100%"
+        trigger_desc = f"当前 ERP 分位数为 {rt_erp_pct*100:.1f}% (高于 35% 极具吸引力)，股息率利差充裕，建议 100% 满仓配置华泰低波红利。"
+
+    # 4. 读取账户当前资产与持仓
+    pos = get_current_position(account_name)
+    holding_sym = pos.get("holding_symbol", etf_symbol).lower()
+    holding_shares = int(pos.get("holding_amount", 0))
+    cash = float(pos.get("cash_available", 0.0))
+    bond_shares = int(pos.get("bond_amount", 0))
+
+    etf_mv = holding_shares * cur_etf_price
+    bond_mv = bond_shares * cur_bond_price
+    total_assets = etf_mv + bond_mv + cash
+    if total_assets <= 0:
+        total_assets = float(pos.get("initial_capital", 100000.0))
+        cash = total_assets
+
+    cur_etf_weight = (etf_mv / total_assets) if total_assets > 0 else 0.0
+
+    # 5. 测算调仓委托
+    target_etf_mv = total_assets * target_weight
+    target_shares = int((target_etf_mv / cur_etf_price) // 100) * 100 if cur_etf_price > 0 else 0
+    delta_shares = target_shares - holding_shares
+
+    orders = []
+    summary_action = "保持现有持仓"
+    reason = ""
+
+    # 判断是否需要调仓 (阈值 100 股)
+    if delta_shares >= 100:
+        # 需要加仓 (低吸买入 512890)
+        buy_amount = delta_shares * cur_etf_price
+        summary_action = f"🔼 低吸加仓：买入【华泰低波红利】约 {delta_shares:,} 股至 {int(target_weight*100)}% 仓位"
+        reason = f"{trigger_desc} 当前持有 {cur_etf_weight*100:.1f}% 仓位，需加仓 {abs(target_weight - cur_etf_weight)*100:.1f}%。"
+
+        # 如果需要卖出部分国债换取现金
+        if cash < buy_amount and bond_shares > 0:
+            need_cash = buy_amount - cash
+            sell_bond_shares = int((need_cash / cur_bond_price) // 10) * 10 + 10
+            sell_bond_shares = min(sell_bond_shares, bond_shares)
+            if sell_bond_shares > 0:
+                orders.append({
+                    "step": 1,
+                    "action": "卖出",
+                    "symbol": bond_symbol,
+                    "name": "十年国债ETF",
+                    "shares": sell_bond_shares,
+                    "price": cur_bond_price,
+                    "est_amount": sell_bond_shares * cur_bond_price,
+                    "status": "释放对冲现金"
+                })
+
+        orders.append({
+            "step": len(orders) + 1,
+            "action": "买入",
+            "symbol": etf_symbol,
+            "name": "华泰低波红利ETF",
+            "shares": delta_shares,
+            "price": cur_etf_price,
+            "est_amount": buy_amount,
+            "status": "低吸加仓"
+        })
+
+    elif delta_shares <= -100:
+        # 需要减仓 (高抛卖出 512890)
+        sell_shares = abs(delta_shares)
+        sell_amount = sell_shares * cur_etf_price
+        summary_action = f"🔻 高抛减仓：卖出【华泰低波红利】约 {sell_shares:,} 股，压降至 {int(target_weight*100)}% 仓位"
+        reason = f"{trigger_desc} 当前持仓过高 ({cur_etf_weight*100:.1f}%)，需减仓 {abs(cur_etf_weight - target_weight)*100:.1f}% 锁定浮盈。"
+
+        orders.append({
+            "step": 1,
+            "action": "卖出",
+            "symbol": etf_symbol,
+            "name": "华泰低波红利ETF",
+            "shares": sell_shares,
+            "price": cur_etf_price,
+            "est_amount": sell_amount,
+            "status": "高抛减仓"
+        })
+
+        # 卖出回款可选买入十年国债 ETF 对冲生息
+        est_buy_bond = int((sell_amount * 0.9995 / cur_bond_price) // 10) * 10
+        if est_buy_bond >= 10:
+            orders.append({
+                "step": 2,
+                "action": "买入",
+                "symbol": bond_symbol,
+                "name": "十年国债ETF",
+                "shares": est_buy_bond,
+                "price": cur_bond_price,
+                "est_amount": est_buy_bond * cur_bond_price,
+                "status": "闲置对冲生息"
+            })
+    else:
+        # 无需变动
+        summary_action = f"✅ 保持当前 {int(cur_etf_weight*100)}% 稳健仓位 · 无需调仓"
+        reason = f"{trigger_desc} 当前持有 {cur_etf_weight*100:.1f}% 华泰低波红利，与策略目标仓位 ({int(target_weight*100)}%) 吻合，今日无需调仓下单。"
+        orders.append({
+            "action": "持有",
+            "symbol": etf_symbol,
+            "name": "华泰低波红利ETF",
+            "shares": holding_shares,
+            "price": cur_etf_price,
+            "est_amount": etf_mv,
+            "status": f"保持 {int(cur_etf_weight*100)}% 仓位"
+        })
+
+    setup_order = {
+        "symbol": etf_symbol,
+        "name": "华泰低波红利ETF",
+        "shares": target_shares,
+        "price": cur_etf_price,
+        "est_amount": target_shares * cur_etf_price
+    }
+
+    signal_info = {
+        "strategy": "dividend_erp",
+        "target_weight": target_weight,
+        "status_label": status_label,
+        "etf": {
+            "symbol": etf_symbol,
+            "name": "华泰低波红利ETF",
+            "price": cur_etf_price,
+            "chg_pct": q_etf.get("chg_pct", 0.0),
+            "age_seconds": q_etf.get("age_seconds", 0),
+            "quote_time": q_etf.get("quote_time", datetime.datetime.now().strftime("%H:%M:%S")),
+        },
+        "bond": {
+            "symbol": bond_symbol,
+            "name": "十年国债ETF",
+            "price": cur_bond_price,
+            "chg_pct": q_bond.get("chg_pct", 0.0),
+            "age_seconds": q_bond.get("age_seconds", 0)
+        },
+        "indicators": {
+            "pe": rt_pe,
+            "rate_10y": rt_rate_10y,
+            "ey": rt_ey,
+            "erp": rt_erp,
+            "erp_pct": rt_erp_pct,
+            "threshold_sell": 0.20,
+            "threshold_neutral": 0.35,
+            "threshold_buy": 0.80
+        },
+        "conditions": {
+            "overheat": {
+                "name": "估值过热预警线 (ERP ≤ 20% · 仓位压降至 50%)",
+                "passed": rt_erp_pct <= 0.20,
+                "diff": (rt_erp_pct - 0.20) * 100
+            },
+            "neutral": {
+                "name": "估值温和观察带 (20% < ERP ≤ 35% · 维持 75% 仓位)",
+                "passed": 0.20 < rt_erp_pct <= 0.35,
+                "diff": (rt_erp_pct - 0.35) * 100
+            },
+            "attractive": {
+                "name": "极具性价比配置线 (ERP > 35% · 满仓 100% 低吸)",
+                "passed": rt_erp_pct > 0.35,
+                "diff": (rt_erp_pct - 0.35) * 100
+            }
+        }
+    }
+
+    return {
+        "signal": signal_info,
+        "position": pos,
+        "summary_action": summary_action,
+        "can_execute": True,
+        "reason": reason,
+        "orders": orders,
+        "setup_order": setup_order,
+        "portfolio": {
+            "current_holding_symbol": etf_symbol,
+            "current_holding_name": "华泰低波红利ETF",
+            "current_shares": holding_shares,
+            "market_value": etf_mv,
+            "bond_symbol": bond_symbol,
+            "bond_name": "十年国债ETF",
+            "bond_shares": bond_shares,
+            "bond_value": bond_mv,
+            "cash": cash,
+            "total_assets": total_assets,
+            "current_weight": cur_etf_weight,
+            "target_weight": target_weight
+        }
+    }
+
+def execute_dividend_simulated_rebalance(
+    account_name="模拟实盘 3 号 (红利低波ERP择时高抛低吸)",
+    etf_symbol="sh512890",
+    bond_symbol="sh511260",
+    force_auto=False
+):
+    """
+    自动执行红利低波ERP策略模拟账户调仓撮合
+    """
+    plan = generate_dividend_rebalance_plan(account_name, etf_symbol, bond_symbol)
+    orders = plan["orders"]
+    port = plan["portfolio"]
+    pos = plan["position"]
+    init_capital = float(pos.get("initial_capital", 100000.0))
+
+    executed_trades = []
+    now = datetime.datetime.now()
+    is_window = (now.hour == 14 and 45 <= now.minute <= 55)
+
+    if not is_window and not force_auto:
+        return {
+            "success": False,
+            "executed": False,
+            "in_window": False,
+            "message": f"⏳ 尚未到尾盘执行窗口 (当前时间 {now.strftime('%H:%M:%S')})。系统已严格锁定，将在每日 14:45 ~ 14:55 自动执行调仓撮合。",
+            "plan": plan
+        }
+
+    has_trade = any(o["action"] in ["买入", "卖出"] for o in orders)
+    if not has_trade:
+        return {
+            "success": True,
+            "executed": False,
+            "in_window": is_window,
+            "message": f"【{account_name}】当前持仓与策略目标一致，继续持有无需调仓。",
+            "plan": plan
+        }
+
+    cur_shares = pos.get("holding_amount", 0)
+    cur_bond = pos.get("bond_amount", 0)
+    cur_cash = pos.get("cash_available", 0.0)
+
+    for o in orders:
+        if o["action"] == "卖出":
+            record_trade_log(account_name, "高抛卖出", o["symbol"], o["shares"], o["price"], o["est_amount"], reason=f"红利低波ERP择时调仓 ({o['status']})")
+            if o["symbol"] == etf_symbol:
+                cur_shares -= o["shares"]
+            elif o["symbol"] == bond_symbol:
+                cur_bond -= o["shares"]
+            cur_cash += o["est_amount"] * 0.9997  # 扣除万分之三费率
+            executed_trades.append(o)
+
+    for o in orders:
+        if o["action"] == "买入":
+            record_trade_log(account_name, "低吸买入", o["symbol"], o["shares"], o["price"], o["est_amount"], reason=f"红利低波ERP择时调仓 ({o['status']})")
+            if o["symbol"] == etf_symbol:
+                cur_shares += o["shares"]
+            elif o["symbol"] == bond_symbol:
+                cur_bond += o["shares"]
+            cur_cash -= o["est_amount"] * 1.0003
+            executed_trades.append(o)
+
+    save_current_position({
+        "initial_capital": init_capital,
+        "holding_symbol": etf_symbol,
+        "holding_amount": max(0, int(cur_shares)),
+        "bond_symbol": bond_symbol,
+        "bond_amount": max(0, int(cur_bond)),
+        "cash_available": max(0.0, round(cur_cash, 2)),
+        "strategy_type": "dividend_erp",
+        "auto_trade": pos.get("auto_trade", True)
+    }, account_name=account_name)
+
+    return {
+        "success": True,
+        "executed": True,
+        "message": f"【{account_name}】红利低波ERP调仓撮合完成！目标仓位已校准为 {int(port['target_weight']*100)}%。",
+        "trades": executed_trades,
+        "plan": plan
+    }
+
 if __name__ == "__main__":
     plan = generate_rebalance_plan("sz159915", "sh512890", 20)
     print("=== 今日尾盘调仓执行计划 ===")
@@ -349,4 +697,11 @@ if __name__ == "__main__":
     print(f"执行说明: {plan['reason']}")
     print("清单明细:")
     for o in plan["orders"]:
+        print(f"  -> [{o['action']}] {o['name']} ({o['symbol']}): {o['shares']} 股 @ 现价 ¥{o['price']:.3f} 预估金额: ¥{o['est_amount']:.2f}")
+
+    print("\n=== 策略二: 红利低波ERP调仓执行计划 ===")
+    div_plan = generate_dividend_rebalance_plan()
+    print(f"核心结论: {div_plan['summary_action']}")
+    print(f"执行说明: {div_plan['reason']}")
+    for o in div_plan["orders"]:
         print(f"  -> [{o['action']}] {o['name']} ({o['symbol']}): {o['shares']} 股 @ 现价 ¥{o['price']:.3f} 预估金额: ¥{o['est_amount']:.2f}")
