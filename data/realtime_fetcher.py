@@ -7,6 +7,7 @@ A 股 ETF 实时快照行情适配器
 
 import time
 import datetime
+from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
 
@@ -31,7 +32,7 @@ def fetch_realtime_quotes(symbols=["sz159915", "sh512890"]):
     headers = {"Referer": "https://finance.sina.com.cn"}
 
     results = {}
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(ZoneInfo("Asia/Shanghai"))
 
     try:
         resp = session.get(url, headers=headers, timeout=5)
@@ -63,11 +64,11 @@ def fetch_realtime_quotes(symbols=["sz159915", "sh512890"]):
 
             # 组合行情时间
             try:
-                quote_dt = datetime.datetime.strptime(f"{q_date} {q_time}", "%Y-%m-%d %H:%M:%S")
-                age_seconds = max(0, int((now - quote_dt).total_seconds()))
+                quote_dt = datetime.datetime.strptime(f"{q_date} {q_time}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+                age_seconds = int((now - quote_dt).total_seconds())
             except Exception:
-                quote_dt = now
-                age_seconds = 0
+                quote_dt = None
+                age_seconds = None
 
             # 涨跌幅
             chg_pct = ((cur_price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0

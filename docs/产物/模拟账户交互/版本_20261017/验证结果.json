@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-17",
+  "browser": "Installed Google Chrome / Playwright",
+  "result": "passed",
+  "checks": [
+    "初始三个账户可见",
+    "休市禁止执行",
+    "本地图标正常载入",
+    "390px 页面没有横向溢出",
+    "手机可打开新增账户面板",
+    "手机抽屉宽度适配",
+    "新增账户校验空名称",
+    "新增账户校验重名",
+    "修改名称后清理过时校验提示",
+    "新增账户保存自选策略、金额和参数",
+    "刷新后保留账户与当前选择",
+    "入金更新现金与净投入",
+    "超额出金在字段旁提示",
+    "出入金不产生策略收益",
+    "盘中预览禁止执行",
+    "延迟行情阻止生成可执行清单",
+    "延迟情境没有执行入口",
+    "行情错误可重试且不会伪造成功",
+    "尾盘有效情境允许执行",
+    "首次建仓更新持仓、现金、成交明细",
+    "执行完成后防止重复提交",
+    "成交后资产减少额等于费用",
+    "成交记录展示当前账户成交",
+    "成交记录支持 CSV 导出",
+    "暂停账户停止执行",
+    "策略阈值交叉校验",
+    "更换策略保留持仓且支持开启自动",
+    "尾盘自动先卖后买并记录执行方式",
+    "账户切换带回独立配置",
+    "账户搜索有空结果反馈",
+    "标签支持方向键操作",
+    "零资金账户提示资金不足",
+    "零资金账户禁止执行",
+    "侧边面板支持 Escape 关闭",
+    "恢复初始演示可清理测试账户",
+    "768px 页面无横向溢出",
+    "浏览器无 JavaScript 错误"
+  ],
+  "errors": [],
+  "standalone": {
+    "direct_file_url": "passed",
+    "external_runtime_dependencies": false,
+    "unresolved_icons": 0,
+    "unlabelled_inputs": 0
+  },
+  "responsive_viewports": [
+    {
+      "width": 1440,
+      "height": 1100,
+      "status": "desktop visually inspected"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "status": "no horizontal overflow"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "status": "mobile visually inspected, drawer verified"
+    },
+    {
+      "width": 320,
+      "height": 740,
+      "status": "no horizontal overflow"
+    }
+  ],
+  "mechanical_detector": {
+    "status": "degraded",
+    "findings": 0,
+    "limitation": "HTML/CSS parsers unavailable; regex fallback does not certify accessibility or contrast."
+  }
+}

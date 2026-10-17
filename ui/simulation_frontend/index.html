@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fa">
+  <title>模拟账户 · 量化研究台</title>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="connected.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到当前账户</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" data-action="home" aria-label="量化研究台首页"><span class="brand-mark" data-icon="chart-histogram"></span><span>量化研究台<small>策略研究与模拟交易</small></span></a>
+      <div class="nav-heading">工作台</div>
+      <nav aria-label="主导航">
+        <button class="nav-item active" aria-current="page" data-action="home"><span data-icon="wallet"></span>模拟账户<span class="nav-count" id="nav-count">3</span></button>
+      </nav>
+      <div class="nav-heading research-heading">策略研究与回测</div>
+      <nav aria-label="研究入口"><button class="nav-item" data-research="红利高抛低吸"><span data-icon="chart-dots-3"></span>红利高抛低吸</button>
+        <button class="nav-item" data-research="攻守轮动"><span data-icon="switch-horizontal"></span>攻守轮动<span class="external" data-icon="arrow-up-right"></span></button>
+        <button class="nav-item" data-research="因子实验"><span data-icon="flask"></span>因子实验<span class="external" data-icon="arrow-up-right"></span></button>
+        <button class="nav-item" data-research="模型回测"><span data-icon="cpu"></span>模型回测<span class="external" data-icon="arrow-up-right"></span></button>
+      </nav>
+      <div class="sidebar-bottom"><div class="demo-stamp"><span data-icon="devices"></span>本地模拟账户</div><p>独立策略 · 独立资金 · 本地保存。</p><button class="text-button" data-action="help">查看操作说明<span data-icon="arrow-up-right"></span></button><div class="profile"><span class="avatar">研</span><div>个人研究空间<small>模拟交易环境</small></div></div></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><span class="breadcrumb">工作台<span>/</span><b>模拟账户</b></span><div class="topbar-right"><span class="demo-label">模拟交易环境</span><button class="icon-button" aria-label="操作说明" data-action="help"><span data-icon="help-circle"></span></button></div></header>
+      <main class="page">
+        <div class="page-heading"><div><h1>模拟账户</h1><p>选择账户查看持仓，核对清单后执行模拟调仓。</p></div><button class="button primary" data-action="create"><span data-icon="plus"></span>新增模拟账户</button></div>
+        <section aria-label="账户列表" class="accounts-section"><div class="section-inline"><div class="account-filter"><b>我的账户 <span id="account-count">3</span></b><label class="search-field"><span data-icon="search"></span><input id="account-search" type="search" placeholder="搜索账户" aria-label="搜索账户" autocomplete="off"></label></div><span class="account-total" id="all-assets"></span></div><div id="account-list" class="account-list"></div></section>
+        <section id="workspace" class="workspace" aria-label="当前账户" tabindex="-1"><div class="empty-state"><h3>正在读取账户…</h3><p>正在连接本地账户与行情服务。</p></div></section>
+        <footer class="page-footer"><span><span class="status-dot"></span>实际行情 · 模拟成交 · 不连接券商</span><span id="worker-state">正在读取运行状态…</span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="drawer" class="drawer" aria-labelledby="drawer-title"><div class="drawer-shell"><header class="drawer-header"><div><h2 id="drawer-title"></h2><p id="drawer-subtitle"></p></div><button class="icon-button" data-action="close" aria-label="关闭面板"><span data-icon="x"></span></button></header><div id="drawer-body" class="drawer-body"></div></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

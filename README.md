@@ -88,3 +88,22 @@ python scripts/visualize_results.py
 | `open_cost` | `0.00025` | 买入佣金（万分之 2.5） |
 | `close_cost` | `0.00075` | 卖出佣金（万2.5） + 印花税（千0.5） |
 | `account_cash` | `1000000` | 模拟初始资金（100 万元） |
+
+
+## 模拟账户工作区（2026-10-17 接入）
+
+启动 `streamlit run app.py`，选择「模拟账户」。可新增账户、自选攻守轮动或红利低波 ERP、设置初始资金、出入金、调整策略、查看委托清单、执行及导出流水。新账户默认手动，可开启尾盘自动模拟调仓；研究与回测入口继续保留。
+
+手动和自动均在交易日 14:45–14:55 执行，并校验行情时效、前一交易日历史指标、现金与可卖份额。当前是参考价模拟整批成交，费用可配置，不模拟滑点、部分成交或真实券商订单。净投入比例用于收益率展示，不是专业时间加权业绩。
+
+账户数据使用 `data/user_profile/simulation.sqlite3`，首次导入原 JSON，原文件保留。后续以 SQLite 为准；备份应停止应用和自动进程后复制整个账户目录。开启自动后由独立本地进程检查，电脑须保持运行；重启后需重新打开工作区或运行：
+
+```bash
+.venv/bin/python scripts/run_simulation_worker.py
+# 只检查一次
+.venv/bin/python scripts/run_simulation_worker.py --once
+# 独立测试，不访问用户账户
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+当前提供 2026 年交易所日历；其他年份须按官方公告补充 `configs/trading_calendar_YYYY.json`，缺失时禁止执行。当前页面直接复用已确认 Demo 的前端，见[界面还原说明](docs/产物/模拟账户交互/版本_20261017/界面还原说明.md)。详细迁移、自动进程、参数与验证边界见[正式接入说明](docs/产物/模拟账户交互/版本_20261017/正式接入说明.md)，产物见[归档索引](docs/产物/README.md)。本次完成本地接入，未远程部署。

@@ -1,0 +1,229 @@
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const number = (value, digits = 2) => (value == null || !Number.isFinite(Number(value))) ? '—' : Number(value).toLocaleString('zh-CN', {minimumFractionDigits:digits,maximumFractionDigits:digits});
+const money = value => value == null ? '—' : '¥' + number(value);
+const signed = value => value == null ? '—' : (value > 0 ? '+' : value < 0 ? '−' : '') + number(Math.abs(value));
+const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+let ASSETS = {}, navigationOnly = false;
+const STRATEGIES = {
+  erp:{name:'红利低波 ERP 择时',short:'红利低波 ERP',tag:'估值择时',desc:'根据股债利差 ERP 的历史分位，在不同估值区间调整红利低波 ETF 仓位；剩余资金保留为现金。',icon:'chart-dots-3'},
+  rotation:{name:'攻守动量轮动',short:'攻守动量轮动',tag:'双资产轮动',desc:'比较进攻与防守标的的动量，结合进攻标的均线，决定持有哪一只 ETF。',icon:'switch-horizontal'}
+};
+
+let state = {accounts:[],selected:null}, activeTab='overview', toastTimer, drawerKind='', drawerAccount=null;
+let lastFocus=null, drawerRevision=null, pending=null, queuedNavigation=null, lastResponse=null, market={}, worker={}, refreshing=false;
+const uid=()=>crypto.randomUUID();
+const config=type=>type==='erp'?{low:20,high:80,lowWeight:50,midWeight:75,highWeight:100}:{attack:'sh588380',defense:'sh511010',lookback:20};
+const current=()=>state.accounts.find(a=>a.id===state.selected)||state.accounts[0];
+const total=a=>a.portfolio.total;
+const equity=a=>a.portfolio.market_value;
+const positionWeight=a=>a.portfolio.weight==null?null:a.portfolio.weight*100;
+const plan=a=>a.plan;
+const bridge=(type,data={})=>parent.postMessage({isStreamlitMessage:true,type,...data},'*');
+function send(action,data={}){
+ if(pending){if(action==='navigate')queuedNavigation={action,data};return;}
+ pending={requestId:uid(),action,...data};
+ document.body.classList.add('request-pending');
+ $$('#drawer button[type="submit"], [data-action="execute"]').forEach(b=>b.disabled=true);
+ bridge('streamlit:setComponentValue',{value:pending,dataType:'json'});
+}
+function toast(message){clearTimeout(toastTimer);$('#toast').innerHTML=icon('circle-check')+`<span>${esc(message)}</span>`;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,4300);}
+function mountIcons(root=document){root.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);});}
+function renderAccounts(){
+  const q=$('#account-search').value.trim().toLowerCase();
+  const list=state.accounts.filter(a=>(a.name+' '+STRATEGIES[a.strategy].name).toLowerCase().includes(q));
+  $('#account-count').textContent=state.accounts.length;
+  $('#nav-count').textContent=state.accounts.length;
+  $('#all-assets').innerHTML=`全部账户资产<b class="num">${money(state.accounts.some(a=>total(a)==null)?null:state.accounts.reduce((s,a)=>s+total(a),0))}</b>`;
+  $('#account-list').innerHTML=list.length?list.map(a=>{
+    const p=plan(a),selected=a.id===state.selected;
+    return `<button class="account-card${selected?' selected':''}" data-account="${esc(a.id)}" aria-pressed="${selected}"><div class="account-card-head"><span>${esc(a.name)}</span><span class="status-dot ${a.running?'running':''}" aria-label="${a.running?'运行中':'已暂停'}"></span></div><div class="account-strategy">${STRATEGIES[a.strategy].short} · ${a.auto?'尾盘自动':'手动执行'}</div><div class="account-card-bottom"><span class="account-card-asset num">${money(total(a))}</span><span class="mini-badge ${p.orders.length&&a.running?'pending':''}">${!a.running?'已暂停':p.insufficient?'待补充资金':p.error?'信号待更新':p.orders.length?`${p.orders.length} 笔待调仓`:'持仓已对齐'}</span></div></button>`;
+  }).join(''):`<div class="list-empty">没有找到“${esc($('#account-search').value)}”。试试其他账户名称或策略名称。</div>`;
+}
+
+function render(){const filter=$('#trade-filter')?.value;renderAccounts();renderWorkspace();if(filter&&$('#trade-filter')){$('#trade-filter').value=filter;$('#trade-table').innerHTML=tradeTable(current(),filter);}mountIcons();$('#worker-state').textContent=worker.alive?'尾盘自动检查运行中':'手动模拟环境';}
+function renderWorkspace(){
+  const a=current();
+ if(!a){$('#workspace').innerHTML=empty('还没有模拟账户','点击右上角「新增模拟账户」，选择策略和初始资金即可开始。','wallet');return;}
+ const value=total(a),pnl=a.portfolio.pnl,ret=a.netCapital>0&&pnl!=null?pnl/a.netCapital*100:null,p=plan(a);
+  $('#workspace').innerHTML=`
+    <div class="account-header"><div><div class="account-title-line"><h2>${esc(a.name)}</h2><span class="chip ${a.running?'green':''}"><span class="status-dot ${a.running?'running':''}"></span>${a.running?'运行中':'已暂停'}</span><span class="chip">${a.auto?'尾盘自动':'手动执行'}</span></div><div class="account-id"><span>${esc(a.id)}</span><span>·</span><span>创建于 ${esc(a.created)}</span><span>·</span><span>${STRATEGIES[a.strategy].name}</span></div></div><div class="account-actions"><button class="button compact" data-action="funds">${icon('arrows-transfer-up')}资金管理</button></div></div>
+    <div class="metrics" aria-label="账户资产概览"><div class="metric"><label>总资产（元）</label><div class="metric-value num">${number(value)}</div><div class="metric-sub">初始资金 ${money(a.initial)}</div></div><div class="metric"><label>累计收益 / 收益率</label><div class="metric-value num ${pnl>0?'positive':pnl<0?'negative':''}">${signed(pnl)}</div><div class="metric-sub num ${pnl>0?'positive':pnl<0?'negative':''}">${signed(ret)}% <span class="muted">· 已剔除出入金</span></div></div><div class="metric"><label>可用资金（元）</label><div class="metric-value num">${number(a.cash)}</div><div class="metric-sub">可用于模拟调仓</div></div><div class="metric"><label>持仓市值（元）</label><div class="metric-value num">${number(equity(a))}</div><div class="metric-sub">${a.positions.filter(p=>p.shares>0).length} 只 ETF</div></div><div class="metric"><label>当前仓位</label><div class="metric-value num">${number(positionWeight(a),1)}<small>%</small></div><div class="weight-track"><span style="width:${Math.min(100,positionWeight(a))}%"></span></div></div></div>
+    <div class="tabs" role="tablist" aria-label="账户内容">${[['overview','账户总览'],['trades','成交记录'],['funds','资金流水'],['events','运行记录'],['config','策略与设置']].map(([id,label])=>`<button class="tab${activeTab===id?' selected':''}" role="tab" id="tab-${id}" aria-controls="tab-panel" aria-selected="${activeTab===id}" tabindex="${activeTab===id?'0':'-1'}" data-tab="${id}">${label}${id==='trades'&&a.trades.length?`<span class="tab-count">${a.trades.length}</span>`:''}</button>`).join('')}</div>
+    <div id="tab-panel" class="tab-content${refreshing?' loading-surface':''}" role="tabpanel" aria-labelledby="tab-${activeTab}" aria-busy="${refreshing}">${activeTab==='overview'?overview(a,p):activeTab==='trades'?trades(a):activeTab==='funds'?funds(a):activeTab==='events'?events(a):settingsPreview(a)}</div>`;
+}
+function trades(a){
+  return `<div class="record-heading"><div><h3>成交记录</h3><p>每次模拟调仓的买卖明细，按成交时间倒序。</p></div><div class="record-tools"><select id="trade-filter" class="small-select" aria-label="筛选成交方向"><option value="all">全部方向</option><option value="买入">买入</option><option value="卖出">卖出</option></select><button class="button compact" data-action="export-trades" ${a.trades.length?'':'disabled'}>${icon('download')}导出 CSV</button></div></div><div id="trade-table">${tradeTable(a,'all')}</div>`;
+}
+function tradeTable(a,filter){
+  const rows=a.trades.filter(t=>filter==='all'||t.action===filter);
+  return rows.length?`<div class="table-scroll"><table class="ledger-table"><thead><tr><th>成交时间</th><th>标的 / 代码</th><th>方向</th><th class="right">数量（份）</th><th class="right">成交价</th><th class="right">金额（元）</th><th class="right">费用</th><th>方式</th></tr></thead><tbody>${rows.map(t=>`<tr><td class="num">${esc(t.time)}</td><td><b>${(ASSETS[t.symbol]?.name||t.symbol)}</b><small>${esc(t.symbol.toUpperCase())}</small></td><td class="${t.action==='买入'?'positive':'negative'}">${esc(t.action)}</td><td class="right num">${number(t.shares,0)}</td><td class="right num">${number(t.price,3)}</td><td class="right num">${number(t.amount)}</td><td class="right num">${number(t.fee)}</td><td>${esc(t.source)}</td></tr>`).join('')}</tbody></table></div><div class="table-footer">共 ${rows.length} 笔 · 参考价模拟成交</div>`:empty('还没有成交记录',filter==='all'?'在账户总览执行一次模拟调仓，成交明细会出现在这里。':'当前筛选条件下没有成交记录。','receipt');
+}
+function funds(a){return `<div class="record-heading"><div><h3>资金流水</h3><p>记录初始资金与出入金；出入金不会被计作策略收益。</p></div><button class="button compact" data-action="funds">${icon('plus')}出入金</button></div><div class="table-scroll"><table class="ledger-table"><thead><tr><th>时间</th><th>类型</th><th class="right">变动金额（元）</th><th class="right">变动后现金（元）</th><th>状态</th></tr></thead><tbody>${a.funds.map(f=>`<tr><td class="num">${esc(f.time)}</td><td>${esc(f.type)}</td><td class="right num ${f.amount>0?'positive':'negative'}">${signed(f.amount)}</td><td class="right num">${number(f.balance)}</td><td><span class="chip green">已入账</span></td></tr>`).join('')}</tbody></table></div><div class="table-footer">净投入 ${money(a.netCapital)} · 可用资金 ${money(a.cash)}</div>`;}
+function events(a){return `<div class="record-heading"><div><h3>运行记录</h3><p>保留策略变更、运行状态和调仓执行结果。</p></div><span class="chip">${a.events.length} 条记录</span></div><div class="event-list">${a.events.map(e=>`<div class="event-item"><time class="num">${esc(e.time)}</time><div><b>${esc(e.title)}</b><p>${esc(e.detail)}</p></div><span class="chip ${e.status==='已完成'?'green':e.status==='受阻'?'amber':'blue'}">${esc(e.status)}</span></div>`).join('')}</div>`;}
+function settingsPreview(a){return `<div class="record-heading"><div><h3>账户与策略配置</h3><p>配置独立保存于当前账户，切换账户后自动带出。</p></div><button class="button compact" data-action="settings">${icon('edit')}编辑配置</button></div><div class="setting-preview"><section><h3>账户信息</h3><div class="settings-list">${settingLine('账户名称',a.name)}${settingLine('初始资金',money(a.initial))}${settingLine('净投入资金',money(a.netCapital))}${settingLine('执行方式',a.auto?'尾盘自动模拟调仓':'手动执行')}${settingLine('运行状态',a.running?'运行中':'已暂停')}</div></section><section><h3>策略配置</h3><div class="settings-list">${settingLine('绑定策略',STRATEGIES[a.strategy].name)}${a.strategy==='erp'?settingLine('ERP 分位阈值',`${a.config.low}% / ${a.config.high}%`)+settingLine('高估 / 常态 / 低估仓位',`${a.config.lowWeight}% / ${a.config.midWeight}% / ${a.config.highWeight}%`):settingLine('进攻标的',ASSETS[a.config.attack].name)+settingLine('防守标的',ASSETS[a.config.defense].name)+settingLine('观察周期',a.config.lookback+' 日')}${settingLine('执行窗口','14:45–14:55')}${settingLine('模拟佣金',`单边万 ${number(a.feeRate*10000,1)}，无最低收费`)}</div></section></div><div class="settings-actions"><button class="button" data-action="pause">${icon(a.running?'player-pause':'player-play')}${a.running?'暂停账户运行':'恢复账户运行'}</button><button class="button" data-action="funds">${icon('arrows-transfer-up')}管理资金</button></div><p class="settings-note">更换策略只更新目标与调仓清单，已有持仓会保留。<br>自动模拟由独立本地进程运行，需要电脑保持运行。关闭浏览器不影响已启动进程；电脑休眠时会暂停检查。</p>`;}
+const settingLine=(label,value)=>`<div class="settings-line"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+const empty=(title,desc,glyph='receipt')=>`<div class="empty-state"><div class="empty-icon">${icon(glyph)}</div><h3>${title}</h3><p>${desc}</p></div>`;
+function openDrawer(title,subtitle,body,kind){
+  lastFocus=document.activeElement;drawerKind=kind;
+  $('#drawer-title').textContent=title;$('#drawer-subtitle').textContent=subtitle;$('#drawer-body').innerHTML=body;
+  mountIcons($('#drawer'));
+  if(!$('#drawer').open)$('#drawer').showModal();
+  document.body.style.overflow='hidden';
+}
+function closeDrawer(){if($('#drawer').open)$('#drawer').close();}
+$('#drawer').addEventListener('close',()=>{document.body.style.overflow='';drawerKind='';lastFocus?.isConnected&&lastFocus.focus();});
+$('#drawer').addEventListener('click',e=>{if(e.target===$('#drawer')){const r=$('#drawer').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right)closeDrawer();}});
+function strategyChoices(selected){return `<div class="strategy-choices">${Object.entries(STRATEGIES).map(([key,s])=>`<label class="strategy-choice"><input type="radio" name="strategy" value="${key}" ${selected===key?'checked':''}><div><strong>${s.name}</strong><p>${s.desc}</p><span class="chip">${s.tag}</span></div></label>`).join('')}</div>`;}
+const options=(symbols,selected)=>symbols.map(symbol=>`<option value="${symbol}" ${selected===symbol?'selected':''}>${ASSETS[symbol].name} · ${symbol.slice(2)}</option>`).join('');
+function parameterFields(type,c){
+  return type==='erp'?`<div class="field-pair"><div class="field"><label for="erp-low">高估区间分位上限（%）</label><input id="erp-low" name="low" type="number" min="0" max="100" step="0.1" value="${c.low}"></div><div class="field"><label for="erp-high">低估区间分位下限（%）</label><input id="erp-high" name="high" type="number" min="0" max="100" step="0.1" value="${c.high}"></div></div><div class="field-pair"><div class="field"><label for="low-weight">高估仓位（%）</label><input id="low-weight" name="lowWeight" type="number" min="0" max="100" value="${c.lowWeight}"></div><div class="field"><label for="mid-weight">常态仓位（%）</label><input id="mid-weight" name="midWeight" type="number" min="0" max="100" value="${c.midWeight}"></div></div><div class="field"><label for="high-weight">低估仓位（%）</label><input id="high-weight" name="highWeight" type="number" min="0" max="100" value="${c.highWeight}"></div><div class="field-error" id="parameter-error" role="alert"></div>`:`<div class="field"><label for="attack">进攻标的</label><select id="attack" name="attack">${options(['sh588380','sz159915','sh588000'],c.attack)}</select></div><div class="field"><label for="defense">防守标的</label><select id="defense" name="defense">${options(['sh511010','sh511260','sh512890'],c.defense)}</select></div><div class="field"><label for="lookback">动量观察周期（交易日）</label><input id="lookback" name="lookback" type="number" min="5" max="120" step="1" value="${c.lookback}"><span class="field-help">5–120 个交易日；根据实际历史数据与行情计算。</span></div><div class="field-error" id="parameter-error" role="alert"></div>`;
+}
+function accountForm(mode='create',preferred='rotation'){
+  const editing=mode==='settings',a=editing?current():null,type=a?.strategy||preferred,c=a?.config||config(type);drawerAccount=a?.id||null;drawerRevision=a?.revision||null;
+  openDrawer(editing?'账户设置':'新增模拟账户',editing?'修改仅作用于当前账户，已有持仓会保留。':'填写名称和金额，选择策略后即可创建。默认手动执行。',`<form id="account-form" class="drawer-form" novalidate><div class="form-content"><section class="form-section"><div class="form-section-title">基本信息</div><div class="field"><label for="account-name">账户名称</label><input id="account-name" name="name" value="${esc(a?.name||'')}" maxlength="30" placeholder="例如：红利稳健 02" autocomplete="off" aria-describedby="name-error" autofocus><div id="name-error" class="field-error" role="alert"></div></div>${!editing?`<div class="field"><label for="initial-capital">初始模拟资金</label><div class="input-unit"><input id="initial-capital" name="capital" type="number" min="1000" max="1000000000" step="0.01" value="100000" aria-describedby="capital-error"><span>元</span></div><div class="presets" aria-label="常用金额">${[50000,100000,200000,500000].map(v=>`<button type="button" data-preset="${v}" class="${v===100000?'selected':''}">${v/10000} 万</button>`).join('')}</div><span class="field-help">支持 1,000–1,000,000,000 元，后续可单独出入金。</span><div id="capital-error" class="field-error" role="alert"></div></div>`:`<div class="notice">初始资金 ${money(a.initial)} · 当前总资产 ${money(total(a))}<br>追加或取出资金，请使用账户首页的「资金管理」。</div>`}</section><section class="form-section"><div class="form-section-title">选择策略<small>选择下方一种，参数可直接调整</small></div>${strategyChoices(type)}<div id="parameter-fields" class="parameter-fields">${parameterFields(type,c)}</div></section><section class="form-section"><details class="fee-settings"><summary>交易费用 · 单边万 ${number(a?a.feeRate*10000:1,1)}，可调整</summary><div class="field"><label for="fee-rate">单边模拟佣金（万分之）</label><input id="fee-rate" name="fee" type="number" min="0" max="100" step="0.1" value="${a?a.feeRate*10000:1}"><span class="field-help">ETF 免印花税；无最低佣金，不模拟滑点或部分成交。</span><div id="fee-error" class="field-error" role="alert"></div></div></details><div class="form-section-title">执行方式</div><div class="field-row"><div><b>尾盘自动模拟调仓</b><small>默认手动；可开启交易日尾盘自动模拟调仓</small></div><label class="switch"><input type="checkbox" id="auto-trade" name="auto" ${a?.auto?'checked':''} aria-label="尾盘自动模拟调仓"><span></span></label></div><p class="field-help">后台进程独立检查，需要电脑保持运行。行情异常、休市或账户暂停时不会执行。</p></section>${editing?`<p class="notice amber">保存策略后会重新生成调仓清单；已有持仓不会自动重置。请回到账户总览核对差额后执行。</p>`:''}</div><footer class="form-footer"><span class="footer-hint">账户配置独立保存</span><button type="button" class="button" data-action="close">取消</button><button type="submit" class="button primary">${editing?'保存设置':'创建账户'}</button></footer></form>`,mode);
+  const drafts={[type]:{...c}};
+  let previous=type;
+  $$('input[name="strategy"]').forEach(r=>r.addEventListener('change',()=>{
+    drafts[previous]=readConfig(previous,new FormData($('#account-form')));
+    previous=r.value;$('#parameter-fields').innerHTML=parameterFields(r.value,drafts[r.value]||config(r.value));
+  }));
+  $('#account-form').addEventListener('submit',e=>{e.preventDefault();saveAccountForm(editing);});
+}
+function readConfig(type,fd){return type==='erp'?Object.fromEntries(['low','high','lowWeight','midWeight','highWeight'].map(k=>[k,Number(fd.get(k))])):{attack:fd.get('attack'),defense:fd.get('defense'),lookback:Number(fd.get('lookback'))};}
+function fieldError(id,message,input){input?.closest('details')?.setAttribute('open','');$('#'+id).textContent=message;if(input){input.setAttribute('aria-invalid','true');input.focus();}}
+function saveAccountForm(editing){
+  $$('#account-form [aria-invalid]').forEach(el=>el.removeAttribute('aria-invalid'));$$('#account-form .field-error').forEach(el=>el.textContent='');
+  const fd=new FormData($('#account-form')),name=String(fd.get('name')).trim(),type=fd.get('strategy'),c=readConfig(type,fd),capital=Number(fd.get('capital'));
+  if(!name||name.length>30){fieldError('name-error','请输入 1–30 个字符的账户名称。',$('#account-name'));return;}
+  if(state.accounts.some(a=>a.name.toLowerCase()===name.toLowerCase()&&a.id!==drawerAccount)){fieldError('name-error','已有同名账户，请换一个便于区分的名称。',$('#account-name'));return;}
+  if(!editing&&(!Number.isFinite(capital)||capital<1000||capital>1e9||Math.abs(capital-round(capital))>1e-6)){fieldError('capital-error','初始资金需在 1,000–1,000,000,000 元之间，最多两位小数。',$('#initial-capital'));return;}
+  const inputs=[...$('#parameter-fields').querySelectorAll('input,select')];
+  if(inputs.some(el=>!el.value||!el.checkValidity())){fieldError('parameter-error','请按字段范围填写完整参数。',inputs.find(el=>!el.value||!el.checkValidity()));return;}
+  if(type==='erp'&&c.low>=c.high){fieldError('parameter-error','高估区间上限必须小于低估区间下限。',$('#erp-low'));return;}
+  if(type==='erp'&&(c.lowWeight>c.midWeight||c.midWeight>c.highWeight)){fieldError('parameter-error','仓位应满足：高估仓位 ≤ 常态仓位 ≤ 低估仓位。',$('#low-weight'));return;}
+
+  const fee=Number(fd.get('fee'));
+  if(!Number.isFinite(fee)||fee<0||fee>100){fieldError('fee-error','佣金须在万 0–万 100 之间。',$('#fee-rate'));return;}
+  send(editing?'configure':'create',{accountId:drawerAccount,revision:drawerRevision,name,strategy:type,config:c,capital,auto:fd.get('auto')==='on',feeRate:fee/10000});
+}
+function fundsForm(){
+  const a=current();drawerAccount=a.id;drawerRevision=a.revision;
+  openDrawer('资金管理',`${a.name} · 出入金与策略收益分别记录。`,`<form id="fund-form" class="drawer-form" novalidate><div class="form-content"><div class="fund-switch" role="group" aria-label="资金操作"><button type="button" class="selected" data-fund-mode="deposit" aria-pressed="true">模拟入金</button><button type="button" data-fund-mode="withdraw" aria-pressed="false">模拟出金</button></div><input type="hidden" name="mode" value="deposit"><div class="fund-balance"><span>当前可用资金</span><b class="num">${money(a.cash)}</b></div><div class="field"><label for="fund-amount" id="fund-label">入金金额</label><div class="input-unit"><input id="fund-amount" name="amount" type="number" min="0.01" max="1000000000" step="0.01" value="10000" aria-describedby="fund-error" autofocus><span>元</span></div><div class="presets">${[10000,50000,100000].map(v=>`<button type="button" data-fund-preset="${v}" class="${v===10000?'selected':''}">${v/10000} 万</button>`).join('')}</div><div id="fund-error" class="field-error" role="alert"></div></div><p class="notice" id="fund-notice">入金后，可用资金与净投入同步增加，累计收益金额不变。策略会根据新的总资产重新生成清单。</p><div id="fund-preview" class="fund-preview"></div></div><footer class="form-footer"><button type="button" class="button" data-action="close">取消</button><button type="submit" class="button primary" id="fund-submit">确认入金</button></footer></form>`,'funds');
+  $('#fund-form').addEventListener('submit',e=>{e.preventDefault();saveFundForm();});
+  $('#fund-amount').addEventListener('input',updateFundPreview);updateFundPreview();
+}
+function updateFundPreview(){
+  const a=state.accounts.find(x=>x.id===drawerAccount),amount=Number($('#fund-amount').value)||0,deposit=$('#fund-form [name="mode"]').value==='deposit',delta=deposit?amount:-amount;
+  $('#fund-preview').innerHTML=`<div><span>操作后可用资金</span><b class="num">${money(a.cash+delta)}</b></div><div><span>操作后净投入</span><b class="num">${money(a.netCapital+delta)}</b></div><div><span>累计收益金额</span><b class="num">${signed(a.portfolio.pnl)} 元 · 不受出入金影响</b></div>`;
+}
+function saveFundForm(){
+  const a=state.accounts.find(x=>x.id===drawerAccount),amount=Number($('#fund-amount').value),deposit=$('#fund-form [name="mode"]').value==='deposit';
+  $('#fund-error').textContent='';$('#fund-amount').removeAttribute('aria-invalid');
+  if(!Number.isFinite(amount)||amount<=0||amount>1e9||Math.abs(amount-round(amount))>1e-6){fieldError('fund-error','请输入 0.01–1,000,000,000 元的金额，最多两位小数。',$('#fund-amount'));return;}
+  if(!deposit&&amount>a.cash){fieldError('fund-error',`出金金额超过可用资金 ${money(a.cash)}。如需取出持仓资金，请先完成卖出。`,$('#fund-amount'));return;}
+
+  send('funds',{accountId:a.id,revision:drawerRevision,amount,withdraw:!deposit});
+}
+
+function exportTrades(){
+  const a=current(),filter=$('#trade-filter')?.value||'all',rows=a.trades.filter(t=>filter==='all'||t.action===filter),safe=v=>{const t=String(v??'');return '"'+(/^[=+@-]/.test(t)?"'":'')+t.replace(/"/g,'""')+'"';};
+  const lines=[['账户','成交时间','标的','代码','方向','数量(份)','成交价','金额(元)','费用(元)','方式'],...rows.map(t=>[a.name,t.time,ASSETS[t.symbol].name,t.symbol,t.action,t.shares,t.price,t.amount,t.fee,t.source])];
+  const blob=new Blob(['\uFEFF'+lines.map(row=>row.map(safe).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=`${a.name.replace(/[\\/:*?"<>|]/g,'_')}_模拟成交记录.csv`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`已导出 ${rows.length} 笔模拟成交记录。`);
+}
+document.addEventListener('click',async e=>{
+  if(navigationOnly){
+    const target=e.target.closest('[data-research], [data-action="home"]');
+    if(target){e.preventDefault();pending=null;send('navigate',{mode:target.dataset.research||'模拟账户'});}
+    return;
+  }
+  const earlyResearch=e.target.closest('[data-research]');if(earlyResearch){send('navigate',{mode:earlyResearch.dataset.research});return;}
+  if(pending&&e.target.closest('[data-action], [data-account], [data-research], [data-create-strategy]'))return;
+  const accountButton=e.target.closest('[data-account]');
+  if(accountButton){state.selected=accountButton.dataset.account;activeTab='overview';render();send('select',{accountId:state.selected});return;}
+  const research=e.target.closest('[data-research]');if(research){send('navigate',{mode:research.dataset.research});return;}
+  const tab=e.target.closest('[data-tab]');if(tab){activeTab=tab.dataset.tab;renderWorkspace();$('#tab-'+activeTab)?.focus();return;}
+  const preset=e.target.closest('[data-preset]');if(preset){$('#initial-capital').value=preset.dataset.preset;$$('[data-preset]').forEach(b=>b.classList.toggle('selected',b===preset));return;}
+  const fundPreset=e.target.closest('[data-fund-preset]');if(fundPreset){$('#fund-amount').value=fundPreset.dataset.fundPreset;$$('[data-fund-preset]').forEach(b=>b.classList.toggle('selected',b===fundPreset));updateFundPreview();return;}
+  const fundMode=e.target.closest('[data-fund-mode]');if(fundMode){const deposit=fundMode.dataset.fundMode==='deposit';$('#fund-form [name="mode"]').value=fundMode.dataset.fundMode;$$('[data-fund-mode]').forEach(b=>{b.classList.toggle('selected',b===fundMode);b.setAttribute('aria-pressed',String(b===fundMode));});$('#fund-label').textContent=deposit?'入金金额':'出金金额';$('#fund-submit').textContent=deposit?'确认入金':'确认出金';$('#fund-notice').textContent=deposit?'入金后，可用资金与净投入同步增加，累计收益金额不变。策略会根据新的总资产重新生成清单。':'仅可取出可用资金，不会自动卖出持仓。出金与策略收益分别记账。';$('#fund-error').textContent='';updateFundPreview();return;}
+  const button=e.target.closest('[data-action]');if(!button||button.disabled)return;
+  switch(button.dataset.action){
+    case 'home':activeTab='overview';render();break;
+    case 'create':accountForm();break;
+    case 'settings':accountForm('settings');break;
+    case 'funds':fundsForm();break;
+    case 'close':closeDrawer();break;
+    case 'help':help();break;
+    case 'refresh':send('refresh');break;
+    case 'execute':{const a=current();if(a.plan.canExecute)send('execute',{accountId:a.id,planId:a.plan.id});break;}
+    case 'export-trades':exportTrades();break;
+    case 'pause':{const a=current();send('pause',{accountId:a.id,revision:a.revision,running:!a.running});break;}
+    case 'tab-events':activeTab='events';renderWorkspace();break;
+
+  }
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='trade-filter')$('#trade-table').innerHTML=tradeTable(current(),e.target.value);
+});
+document.addEventListener('input',e=>{
+  const form=e.target.closest('#account-form');
+  if(form){
+    if(e.target.id==='account-name')$('#name-error').textContent='';
+    if(e.target.id==='initial-capital'){$('#capital-error').textContent='';$$('[data-preset]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.preset)===Number(e.target.value)));}
+    if(e.target.closest('#parameter-fields'))$('#parameter-error').textContent='';
+    e.target.removeAttribute('aria-invalid');
+  }
+  if(e.target.id==='fund-amount'){$('#fund-error').textContent='';e.target.removeAttribute('aria-invalid');$$('[data-fund-preset]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.fundPreset)===Number(e.target.value)));}
+});
+document.addEventListener('keydown',e=>{
+  const tab=e.target.closest('[data-tab]');if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+  e.preventDefault();const tabs=['overview','trades','funds','events','config'],index=tabs.indexOf(activeTab);activeTab=e.key==='Home'?tabs[0]:e.key==='End'?tabs.at(-1):tabs[(index+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];renderWorkspace();$('#tab-'+activeTab).focus();
+});
+$('#account-search').addEventListener('input',renderAccounts);
+function overview(a,p){
+ const sig=p.signal,weight=positionWeight(a),asset=ASSETS[p.target.symbol];
+ const positions=a.positions.length?`<div class="table-scroll"><table class="holdings-table"><thead><tr><th>标的 / 代码</th><th class="right">持仓 / 可卖</th><th class="right">参考价</th><th class="right">市值（元）</th></tr></thead><tbody>${a.positions.map(v=>`<tr><td><b>${esc(ASSETS[v.symbol]?.name||v.symbol)}</b><small>${esc(v.symbol.toUpperCase())}</small></td><td class="right num">${number(v.shares,0)}<small>可卖 ${number(v.sellable,0)}</small></td><td class="right num">${number(v.price,3)}</td><td class="right num">${number(v.value)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty-state compact-empty"><div class="empty-icon">${icon('wallet')}</div><h3>资金已就位，等待首次建仓</h3><p>核对策略目标，在有效尾盘窗口执行模拟调仓。</p></div>`;
+ const signals=!sig?`<p class="notice amber">${esc(p.error||'当前无法取得有效信号，请刷新行情重试。')}</p>`:a.strategy==='erp'?`<div class="signal-row"><div><label>股债利差 ERP</label><strong class="num">${number(sig.erp)}%</strong><small>按最新取得报价计算</small></div><div><label>250 日分位</label><strong class="num">${number(sig.erp_pct*100,1)}%</strong><small>${esc(sig.band)}</small></div><div><label>策略目标仓位</label><strong class="num">${number(p.target.weight,0)}%</strong><small>剩余资金留现金</small></div></div>`:`<div class="signal-row"><div><label>进攻动量（${a.config.lookback} 日）</label><strong class="num ${sig.tech.mom>=0?'positive':'negative'}">${signed(sig.tech.mom*100)}%</strong><small>${esc(ASSETS[a.config.attack]?.name)}</small></div><div><label>防守动量（${a.config.lookback} 日）</label><strong class="num ${sig.defensive.mom>=0?'positive':'negative'}">${signed(sig.defensive.mom*100)}%</strong><small>${esc(ASSETS[a.config.defense]?.name)}</small></div><div><label>当前策略目标</label><strong>${esc(asset?.name||'—')}</strong><small>${sig.is_attack?'进攻条件全部成立':'切换至防守标的'}</small></div></div>`;
+ const rules=a.strategy==='erp'?`ERP 分位 ≤ ${a.config.low}% 时，目标仓位 ${a.config.lowWeight}%；≤ ${a.config.high}% 时为 ${a.config.midWeight}%；高于 ${a.config.high}% 时为 ${a.config.highWeight}%。`:`进攻动量 > 0、进攻价格 > ${a.config.lookback} 日均线、进攻动量 > 防守动量，三者同时成立时持有进攻标的，否则切换至防守标的。`;
+ return `<div class="overview-grid"><div class="left-content"><section aria-label="当前持仓"><div class="section-heading"><h3>当前持仓</h3><small>按最新取得报价估值</small></div>${positions}<div class="allocation"><span><i class="legend-dot"></i>持仓 ${number(weight,1)}%</span><div class="allocation-bar"><span style="width:${weight||0}%"></span><i></i></div><span><i class="legend-dot cash"></i>现金 ${number(weight==null?null:100-weight,1)}%</span></div></section><section class="strategy-section"><div class="section-heading"><h3>策略观察</h3><button class="text-button" data-action="settings">修改策略${icon('chevron-right')}</button></div><div class="strategy-name">${icon(STRATEGIES[a.strategy].icon)}${STRATEGIES[a.strategy].name}<span class="chip">${STRATEGIES[a.strategy].tag}</span></div><p>${STRATEGIES[a.strategy].desc}</p>${signals}<details class="rule-detail"><summary>${icon('chevron-right')}查看策略规则与参数</summary><p>${rules}<br>历史指标截至 ${esc(sig?.historical_asof||'未知')}。权益 ETF 当日买入次日可卖；国债 ETF 按 T+0 模拟。</p></details><div class="market-strip"><span class="market-state"><span class="status-dot ${market.ready?'running':''}"></span>${esc(market.full)}</span><button class="text-button" data-action="refresh">${icon('refresh')}刷新行情</button></div></section></div>${decision(a,p)}</div>`;
+}
+function decision(a,p){
+ const has=p.orders.length>0;
+ const title=!a.running?'账户已暂停运行':p.error?'暂时无法生成调仓计划':p.insufficient?'可用资金不足一手':has?(!a.positions.length?'准备好，开始首次建仓':a.strategy==='erp'?`建议调整至 ${number(p.target.weight,0)}% 仓位`:'策略信号切换，建议调仓'):a.positions.length?'持仓已对齐，继续持有':'保持空仓，等待信号';
+ const description=!a.running?'配置与持仓已保留。恢复运行后，再核对当前调仓计划。':p.signal?.description||p.error||'等待有效信号后生成调仓清单。';
+ const label=pending?.action==='execute'?'正在校验并模拟撮合…':!a.running?'恢复运行后可执行':p.error?'等待有效行情':!has?'当前无需调仓':p.canExecute?`执行模拟调仓 · ${p.orders.length} 笔`:market.label==='休市'?'休市，暂不可执行':'执行条件尚未满足';
+ return `<aside class="decision-panel" aria-label="今日调仓"><div class="section-heading"><h3>今日调仓</h3><span class="decision-time">${icon('clock')}14:45–14:55</span></div><div class="decision-icon ${!a.running||p.error?'warning':has?'':'success'}">${icon(!a.running?'player-pause':p.error?'alert-circle':has?'arrows-exchange':'check')}</div><div class="decision-title">${esc(title)}</div><p class="decision-desc">${esc(description)}</p>${p.signal?`<div class="target-row"><span>当前仓位 <strong>${number(positionWeight(a),1)}%</strong></span>${icon('arrow-right')}<span>策略目标 <strong>${number(p.target.weight,0)}%</strong></span></div>`:''}${has?`<div class="plan-orders">${p.orders.map(o=>`<div class="plan-order"><span class="order-direction ${o.action==='卖出'?'sell':''}">${esc(o.action)}</span><div class="order-info"><b>${esc(o.name)}</b><small>${number(o.shares,0)} 份 × ${number(o.price,3)}</small><small>${esc(o.status)}</small></div><div class="order-amount num">${money(o.amount)}<small>费用 ${money(o.fee)}</small></div></div>`).join('')}</div><div class="fee-summary"><span>预计费用 ${money(p.fees)}</span><span>成交后现金 ${money(p.remaining)}</span></div>`:!p.error?`<div class="no-trade">${icon('circle-check')}当前没有待执行委托</div>`:''}<div class="execution-note">${icon(p.canExecute?'info-circle':'lock')}<span>${esc(p.reasons[0]||'提交时会重新校验行情、资金与持仓。')}</span></div>${p.reasons.length>1?`<details class="rule-detail conditions"><summary>${icon('chevron-right')}查看全部执行条件（${p.reasons.length} 项）</summary>${p.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}</details>`:''}<button class="button primary full" data-action="execute" ${p.canExecute&&!pending?'':'disabled'}>${icon('player-play')}${esc(label)}</button><p class="decision-footnote">参考价模拟成交 · 单边佣金万 ${number(a.feeRate*10000,1)}</p><div class="run-meta"><span>${esc(market.label)} · ${esc(market.time)}</span><button class="text-button" data-action="tab-events">运行记录${icon('chevron-right')}</button></div><details class="rule-detail quote-details"><summary>${icon('chevron-right')}本次行情快照</summary>${Object.entries(p.quoteTimes).map(([symbol,time])=>`<p>${esc(ASSETS[symbol]?.name||symbol)} · ${esc(time)}</p>`).join('')}</details></aside>`;
+}
+function help(){openDrawer('操作说明','账户、策略、资金与执行结果始终对应。',`<div class="form-content">${[['创建账户','填写名称、金额，选择策略和执行方式。新账户默认手动。'],['核对并执行','在交易日 14:45–14:55 核对清单后执行；行情、持仓或账户变化时需刷新后重新核对。'],['调整策略与资金','设置中调整策略不会重置持仓。资金管理支持出入金，单独记账。'],['开启自动模拟','自动进程与浏览器独立，需要电脑保持运行；休市、行情异常或账户暂停时不执行。'],['查看记录','成交、资金与运行记录分别保存，成交支持 CSV 导出。']].map(([t,d],i)=>`<div class="help-step"><span>${i+1}</span><div><h3>${t}</h3><p>${d}</p></div></div>`).join('')}<p class="notice">使用实际行情进行参考价模拟成交，不连接券商。ETF 免印花税，无最低佣金；不模拟滑点或部分成交。累计收益率为相对净投入的简单比例。</p></div>`,'help');}
+window.addEventListener('message',e=>{
+ if(e.source!==parent||e.data?.type!=='streamlit:render')return;
+ if(e.data.args.navigationOnly){
+   navigationOnly=true;pending=null;document.body.classList.add('navigation-only');
+   $$('.nav-item').forEach(b=>{const active=b.dataset.research===e.data.args.mode;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');b.setAttribute('title',b.textContent.trim());});
+   bridge('streamlit:setFrameHeight',{height:window.innerWidth>250?154:window.innerHeight});
+   return;
+ }
+ const {snapshot,response}=e.data.args;
+ if(!snapshot)return;
+ ASSETS=snapshot.assets;market=snapshot.market;worker=snapshot.worker;
+ const selected=state.selected;
+ state={accounts:snapshot.accounts,selected:snapshot.accounts.some(a=>a.id===selected)?selected:snapshot.selected};
+  if(response&&response.requestId!==lastResponse){
+  lastResponse=response.requestId;
+  if(pending?.requestId===response.requestId){pending=null;document.body.classList.remove('request-pending');
+   if(response.ok&&['create','configure','funds'].includes(response.action)){closeDrawer();if(response.accountId)state.selected=response.accountId;if(response.action==='create'){activeTab='overview';$('#account-search').value='';}}
+   if(!response.ok&&$('#drawer').open){let box=$('#server-error');if(!box){box=document.createElement('p');box.id='server-error';box.className='notice amber';box.setAttribute('role','alert');$('#drawer .form-content').prepend(box);}box.textContent=response.message;box.scrollIntoView({block:'nearest'});}
+   if(response.message&&!response.silent)toast(response.message);
+  }
+ }
+ render();
+ if(!pending)$$('#drawer button[type="submit"]').forEach(b=>b.disabled=false);
+ if(!pending&&queuedNavigation){const next=queuedNavigation;queuedNavigation=null;send(next.action,next.data);}
+});
+mountIcons();
+bridge('streamlit:componentReady',{apiVersion:1});
+bridge('streamlit:setFrameHeight',{height:900});
+setInterval(()=>{if(!navigationOnly&&!pending&&!$('#drawer').open&&!document.hidden)send('refresh',{silent:true});},30000);

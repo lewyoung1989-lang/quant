@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fa">
+  <title>模拟账户 · 量化研究台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到当前账户</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="./index.html" aria-label="量化研究台首页"><span class="brand-mark" data-icon="chart-histogram"></span><span>量化研究台<small>策略研究与模拟交易</small></span></a>
+      <div class="nav-heading">工作台</div>
+      <nav aria-label="主导航">
+        <button class="nav-item active" aria-current="page" data-action="home"><span data-icon="wallet"></span>模拟账户<span class="nav-count" id="nav-count">3</span></button>
+        <button class="nav-item" data-action="library"><span data-icon="chart-arrows-vertical"></span>策略库<span class="subtle-label">2</span></button>
+      </nav>
+      <div class="nav-heading research-heading">策略研究</div>
+      <nav aria-label="研究入口">
+        <a class="nav-item" href="../../../layout-demo/index.html" target="_blank" rel="noopener"><span data-icon="switch-horizontal"></span>攻守轮动<span class="external" data-icon="arrow-up-right"></span></a>
+        <a class="nav-item" href="../../../layout-demo/index.html" target="_blank" rel="noopener"><span data-icon="flask"></span>因子实验<span class="external" data-icon="arrow-up-right"></span></a>
+        <a class="nav-item" href="../../../layout-demo/index.html" target="_blank" rel="noopener"><span data-icon="cpu"></span>模型回测<span class="external" data-icon="arrow-up-right"></span></a>
+      </nav>
+      <div class="sidebar-bottom"><div class="demo-stamp"><span data-icon="devices"></span>交互演示版</div><p>数据为示例，仅在本浏览器保存。</p><button class="text-button" data-action="help">查看操作说明<span data-icon="arrow-up-right"></span></button><div class="profile"><span class="avatar">研</span><div>个人研究空间<small>模拟交易环境</small></div></div></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><span class="breadcrumb">工作台<span>/</span><b>模拟账户</b></span><div class="topbar-right"><span class="demo-label">DEMO · 示例数据</span><button class="icon-button" aria-label="操作说明" data-action="help"><span data-icon="help-circle"></span></button></div></header>
+      <main class="page">
+        <div class="page-heading"><div><h1>模拟账户</h1><p>让每一套策略，都有自己的试验场。</p></div><button class="button primary" data-action="create"><span data-icon="plus"></span>新增模拟账户</button></div>
+        <section aria-label="账户列表" class="accounts-section"><div class="section-inline"><div class="account-filter"><b>我的账户 <span id="account-count">3</span></b><label class="search-field"><span data-icon="search"></span><input id="account-search" type="search" placeholder="搜索账户" aria-label="搜索账户" autocomplete="off"></label></div><span class="account-total" id="all-assets"></span></div><div id="account-list" class="account-list"></div></section>
+        <section id="workspace" class="workspace" aria-label="当前账户" tabindex="-1"></section>
+        <footer class="page-footer"><span><span class="status-dot"></span>浏览器本地演示 · 未接入行情与交易服务</span><button class="text-button" data-action="reset">恢复初始演示</button></footer>
+      </main>
+    </div>
+  </div>
+  <div class="demo-toolbar" aria-label="演示情境"><span class="toolbar-title"><span data-icon="adjustments-horizontal"></span>演示情境</span><label class="sr-only" for="scenario">切换市场情境</label><select id="scenario"><option value="closed">休市 · 10/17 周六</option><option value="window">尾盘窗口 · 10/16 14:50</option><option value="intraday">盘中预览 · 10/16 13:30</option><option value="low">ERP 低估 · 加仓至高仓位</option><option value="stale">行情延迟 · 暂停执行</option><option value="error">行情异常 · 加载失败</option></select><button class="text-button" data-action="try-trade">体验一次调仓<span data-icon="arrow-right"></span></button></div>
+  <dialog id="drawer" class="drawer" aria-labelledby="drawer-title"><div class="drawer-shell"><header class="drawer-header"><div><h2 id="drawer-title"></h2><p id="drawer-subtitle"></p></div><button class="icon-button" data-action="close" aria-label="关闭面板"><span data-icon="x"></span></button></header><div id="drawer-body" class="drawer-body"></div></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+{
+  "date": "2026-10-17",
+  "browser": [
+    {
+      "device": "桌面",
+      "mode": "红利高抛低吸",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 1512,
+        "scroll": 1512,
+        "main": {
+          "x": 194,
+          "y": 0,
+          "width": 1318,
+          "height": 1478.140625,
+          "top": 0,
+          "right": 1512,
+          "bottom": 1478.140625,
+          "left": 194
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 194,
+          "height": 1100,
+          "top": 0,
+          "right": 194,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "桌面",
+      "mode": "攻守轮动",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 1512,
+        "scroll": 1512,
+        "main": {
+          "x": 194,
+          "y": 0,
+          "width": 1318,
+          "height": 1700.953125,
+          "top": 0,
+          "right": 1512,
+          "bottom": 1700.953125,
+          "left": 194
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 194,
+          "height": 1100,
+          "top": 0,
+          "right": 194,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "桌面",
+      "mode": "因子实验",
+      "errors": [],
+      "controls": 8,
+      "layout": {
+        "width": 1512,
+        "scroll": 1512,
+        "main": {
+          "x": 194,
+          "y": 0,
+          "width": 1318,
+          "height": 1595.953125,
+          "top": 0,
+          "right": 1512,
+          "bottom": 1595.953125,
+          "left": 194
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 194,
+          "height": 1100,
+          "top": 0,
+          "right": 194,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "桌面",
+      "mode": "模型回测",
+      "errors": [],
+      "controls": 6,
+      "layout": {
+        "width": 1512,
+        "scroll": 1512,
+        "main": {
+          "x": 194,
+          "y": 0,
+          "width": 1318,
+          "height": 594.1875,
+          "top": 0,
+          "right": 1512,
+          "bottom": 594.1875,
+          "left": 194
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 194,
+          "height": 1100,
+          "top": 0,
+          "right": 194,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "桌面",
+      "returnToAccounts": true
+    },
+    {
+      "device": "平板",
+      "mode": "红利高抛低吸",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 900,
+        "scroll": 900,
+        "main": {
+          "x": 66,
+          "y": 0,
+          "width": 834,
+          "height": 1668.90625,
+          "top": 0,
+          "right": 900,
+          "bottom": 1668.90625,
+          "left": 66
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 66,
+          "height": 1100,
+          "top": 0,
+          "right": 66,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "平板",
+      "mode": "攻守轮动",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 900,
+        "scroll": 900,
+        "main": {
+          "x": 66,
+          "y": 0,
+          "width": 834,
+          "height": 1832.546875,
+          "top": 0,
+          "right": 900,
+          "bottom": 1832.546875,
+          "left": 66
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 66,
+          "height": 1100,
+          "top": 0,
+          "right": 66,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "平板",
+      "mode": "因子实验",
+      "errors": [],
+      "controls": 8,
+      "layout": {
+        "width": 900,
+        "scroll": 900,
+        "main": {
+          "x": 66,
+          "y": 0,
+          "width": 834,
+          "height": 1727.546875,
+          "top": 0,
+          "right": 900,
+          "bottom": 1727.546875,
+          "left": 66
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 66,
+          "height": 1100,
+          "top": 0,
+          "right": 66,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "平板",
+      "mode": "模型回测",
+      "errors": [],
+      "controls": 6,
+      "layout": {
+        "width": 900,
+        "scroll": 900,
+        "main": {
+          "x": 66,
+          "y": 0,
+          "width": 834,
+          "height": 594.1875,
+          "top": 0,
+          "right": 900,
+          "bottom": 594.1875,
+          "left": 66
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 66,
+          "height": 1100,
+          "top": 0,
+          "right": 66,
+          "bottom": 1100,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "平板",
+      "returnToAccounts": true
+    },
+    {
+      "device": "手机",
+      "mode": "红利高抛低吸",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 390,
+        "scroll": 390,
+        "main": {
+          "x": 0,
+          "y": 154,
+          "width": 390,
+          "height": 1881.046875,
+          "top": 154,
+          "right": 390,
+          "bottom": 2035.046875,
+          "left": 0
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 154,
+          "top": 0,
+          "right": 390,
+          "bottom": 154,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "手机",
+      "mode": "攻守轮动",
+      "errors": [],
+      "controls": 7,
+      "layout": {
+        "width": 390,
+        "scroll": 390,
+        "main": {
+          "x": 0,
+          "y": 154,
+          "width": 390,
+          "height": 2021.609375,
+          "top": 154,
+          "right": 390,
+          "bottom": 2175.609375,
+          "left": 0
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 154,
+          "top": 0,
+          "right": 390,
+          "bottom": 154,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "手机",
+      "mode": "因子实验",
+      "errors": [],
+      "controls": 8,
+      "layout": {
+        "width": 390,
+        "scroll": 390,
+        "main": {
+          "x": 0,
+          "y": 154,
+          "width": 390,
+          "height": 1916.609375,
+          "top": 154,
+          "right": 390,
+          "bottom": 2070.609375,
+          "left": 0
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 154,
+          "top": 0,
+          "right": 390,
+          "bottom": 154,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "手机",
+      "mode": "模型回测",
+      "errors": [],
+      "controls": 6,
+      "layout": {
+        "width": 390,
+        "scroll": 390,
+        "main": {
+          "x": 0,
+          "y": 154,
+          "width": 390,
+          "height": 570.65625,
+          "top": 154,
+          "right": 390,
+          "bottom": 724.65625,
+          "left": 0
+        },
+        "sidebar": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 154,
+          "top": 0,
+          "right": 390,
+          "bottom": 154,
+          "left": 0
+        }
+      }
+    },
+    {
+      "device": "手机",
+      "returnToAccounts": true
+    }
+  ],
+  "interaction": {
+    "rotationParameterChange": true,
+    "advancedParameters": true,
+    "returnToLibrary": "可选策略"
+  },
+  "unit_tests": {
+    "passed": 34
+  },
+  "scope": "仅导航、参数交互和界面；未触发训练、重新生成回测报告或模拟交易。"
+}

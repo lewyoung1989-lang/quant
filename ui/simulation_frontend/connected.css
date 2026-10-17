@@ -1,0 +1,36 @@
+/* The approved Demo supplies the visual system; only the embedded viewport differs. */
+html,body{height:100%;overflow:hidden}
+.app-shell{height:100dvh;min-height:0}
+.main-shell{height:100dvh;overflow:auto;scrollbar-width:thin;scrollbar-color:#cbd3e1 transparent}
+.sidebar{height:100dvh}
+.page{padding-bottom:32px}
+.quote-details{margin-top:12px}.quote-details p,.conditions p{font-size:10px;padding-bottom:8px}
+.request-pending [data-action="execute"]{opacity:.7}
+#server-error{margin-bottom:18px}
+@media(max-width:560px){.app-shell{display:flex;flex-direction:column}.sidebar{height:55px;flex:0 0 55px}.main-shell{height:auto;min-height:0;flex:1}}
+.research-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.request-pending #drawer button[type="submit"]::after{content:'…'}
+/* The same navigation markup is embedded beside native research results. */
+body.navigation-only .main-shell,body.navigation-only .skip-link{display:none}
+body.navigation-only .app-shell{display:block}
+body.navigation-only .sidebar{width:100%;height:100dvh;position:static;padding:29px 17px 22px;display:flex;flex-direction:column;align-items:stretch;border:0}
+body.navigation-only .brand{font-size:17px;gap:10px;margin:0 0 0;}
+body.navigation-only .brand>span:last-child{display:block;font-size:17px}
+body.navigation-only .brand small{display:block;font-size:10px}
+body.navigation-only .brand-mark{width:35px;height:35px}
+body.navigation-only .nav-heading{display:block;margin:39px 12px 11px}
+body.navigation-only .research-heading{margin-top:27px}
+body.navigation-only .sidebar nav{display:grid!important;width:100%;gap:6px;margin:0}
+body.navigation-only .nav-item{font-size:13px;justify-content:flex-start;padding:10px 12px;min-height:43px;gap:10px;width:100%}
+body.navigation-only .nav-item .external{display:inline-flex;margin-left:auto}
+body.navigation-only .sidebar-bottom{display:block;margin-top:auto}
+body.navigation-only #nav-count{display:none}
+body.navigation-only .sidebar-bottom>.text-button{display:none}
+@media(max-width:180px){body.navigation-only .sidebar{padding-left:12px;padding-right:12px}body.navigation-only .brand>span:last-child{font-size:15px}body.navigation-only .brand small{font-size:9px}body.navigation-only .brand{gap:7px}body.navigation-only .brand-mark{width:29px;height:32px}}
+@media(max-width:100px){body.navigation-only .sidebar{padding:24px 10px 18px;align-items:center}body.navigation-only .brand>span:last-child,body.navigation-only .nav-heading,body.navigation-only .sidebar-bottom,body.navigation-only .nav-item .external{display:none}body.navigation-only .brand{margin-bottom:30px}body.navigation-only .nav-item{font-size:0;justify-content:center;gap:0;padding:11px 0}body.navigation-only .sidebar nav{margin-bottom:19px}}
+@media(min-width:250px){body.navigation-only .sidebar{height:154px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:8px}body.navigation-only .brand>span:last-child{font-size:14px}body.navigation-only .brand small,body.navigation-only .nav-heading,body.navigation-only .sidebar-bottom,body.navigation-only .nav-item .external{display:none}body.navigation-only .brand-mark{width:28px;height:28px}body.navigation-only .sidebar nav{display:flex!important;gap:4px;width:auto}body.navigation-only .sidebar nav[aria-label="研究入口"]{grid-column:1/-1;display:grid!important;grid-template-columns:1fr 1fr;gap:4px}body.navigation-only .nav-item{min-height:32px;padding:6px 8px;font-size:11px;gap:6px}body.navigation-only .nav-item .icon{width:17px;height:17px}}
+body.navigation-only .sidebar{justify-content:flex-start}
+@media(max-width:100px){body.navigation-only .sidebar nav .nav-item.active{font-size:0;gap:0}body.navigation-only .sidebar-bottom{display:none}}
+.fee-settings{margin-bottom:24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;color:var(--muted);font-size:12px}
+.fee-settings summary{cursor:pointer;min-height:28px;display:list-item;line-height:28px}
+.fee-settings[open]>.field{margin-top:14px;color:var(--ink)}

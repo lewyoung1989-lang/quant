@@ -11,6 +11,8 @@
 import sys
 sys.path.append(".")
 import datetime
+import math
+from zoneinfo import ZoneInfo
 import pandas as pd
 from data.sina_fetcher import fetch_sina_stock_kline
 from data.realtime_fetcher import fetch_realtime_quotes
@@ -19,7 +21,8 @@ def compute_rotation_signal(
     tech_symbol="sz159915",
     def_symbol="sh512890",
     lookback_window=20,
-    live_quotes=None
+    live_quotes=None,
+    as_of=None
 ):
     """
     计算当前最新的轮动信号
@@ -43,11 +46,14 @@ def compute_rotation_signal(
     def_quote = live_quotes.get(def_symbol.lower(), {})
 
     # 1. 加载历史日 K 线 (至少取 N+10 天已完结的历史日收盘)
-    tech_df = fetch_sina_stock_kline(tech_symbol, datalen=60)
-    def_df = fetch_sina_stock_kline(def_symbol, datalen=60)
+    now = as_of or datetime.datetime.now(ZoneInfo("Asia/Shanghai"))
+    tech_df = fetch_sina_stock_kline(tech_symbol, datalen=max(60, lookback_window + 10))
+    def_df = fetch_sina_stock_kline(def_symbol, datalen=max(60, lookback_window + 10))
+    if tech_df.empty or def_df.empty:
+        return {"valid": False, "error": "历史日线未取得，请更新数据后重试。"}
 
     # 剔除今天已被写入日线缓存的数据（严禁将今天重复计算两次）
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    today_str = now.date().isoformat()
     hist_tech = tech_df[tech_df.index.strftime("%Y-%m-%d") < today_str]
     hist_def = def_df[def_df.index.strftime("%Y-%m-%d") < today_str]
 
@@ -68,6 +74,8 @@ def compute_rotation_signal(
     # N 天前的收盘价 (Close(t-N))
     tech_base_close = hist_tech.loc[common_hist[-lookback_window], "close"]
     def_base_close = hist_def.loc[common_hist[-lookback_window], "close"]
+    if not all(math.isfinite(float(v)) and float(v) > 0 for v in (tech_price, def_price, tech_base_close, def_base_close)):
+        return {"valid": False, "error": "行情或历史基准价格无效，不能生成轮动信号。"}
 
     # 3. 盘中动量计算: P(t, now) / Close(t-N) - 1
     tech_mom = (tech_price - tech_base_close) / tech_base_close
@@ -75,6 +83,8 @@ def compute_rotation_signal(
 
     # 4. 盘中均线计算: [Close(t-N+1) + ... + Close(t-1) + P(t, now)] / N
     past_closes = hist_tech.loc[common_hist[-(lookback_window - 1):], "close"].values
+    if not all(math.isfinite(float(v)) and float(v) > 0 for v in past_closes):
+        return {"valid": False, "error": "历史均线数据存在缺失或无效价格。"}
     tech_ma = (past_closes.sum() + tech_price) / lookback_window
 
     # 5. 三大进攻条件判别
@@ -105,7 +115,6 @@ def compute_rotation_signal(
         is_new_signal = False
         prev_target_symbol = target_symbol
 
-    now = datetime.datetime.now()
     # 判断当前时间窗口
     # 09:30-11:30, 13:00-15:00 为交易时段
     t_hour = now.hour
@@ -123,6 +132,7 @@ def compute_rotation_signal(
 
     return {
         "valid": True,
+        "historical_asof": common_hist[-1].strftime("%Y-%m-%d"),
         "target_symbol": target_symbol,
         "is_attack": is_attack,
         "is_new_signal": is_new_signal,

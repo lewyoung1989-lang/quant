@@ -1,0 +1,139 @@
+{
+  "formed_at": "2026-10-17T20:38:03+08:00",
+  "scope": "Approved Demo implemented in the local Streamlit application; no broker connection or remote deployment.",
+  "source": {
+    "platform": "Codex desktop",
+    "thread_id": "01a149aa-552c-7510-a168-f6ff9741392e",
+    "original_thread_title": "待补",
+    "user_confirmation": "可以的，按照这个做吧",
+    "execution_preference": "手动为主，可开启自动模拟调仓"
+  },
+  "unit_and_native_ui": {
+    "command": ".venv/bin/python -m unittest discover -s tests -v",
+    "passed": 32,
+    "failed": 0,
+    "backend": 26,
+    "rotation_signal": 3,
+    "native_streamlit_ui": 3,
+    "log": "正式接入测试日志.txt",
+    "accounts": "temporary isolated directories",
+    "network": "mocked"
+  },
+  "browser": {
+    "engine": "installed Google Chrome via Playwright",
+    "passed": 9,
+    "failed": 0,
+    "checks": [
+      "workspace loads",
+      "create preset200000",
+      "create save updates selected account",
+      "deposit25000",
+      "rename strategy and auto save",
+      "pause preserves account",
+      "overwithdraw blocked",
+      "withdraw5000",
+      "isolated fixed-clock manual execution updates cash/holdings and disables repeated execution"
+    ],
+    "failures": [],
+    "data": "Isolated profiles with fixed quotes and signals; execution uses fixed 2026-10-16 14:50 Shanghai clock. Nothing injected into the real workspace."
+  },
+  "real_workspace_visual": [
+    {
+      "device": "桌面",
+      "cardRects": [
+        {
+          "x": 290,
+          "y": 242.984375
+        },
+        {
+          "x": 691.328125,
+          "y": 242.984375
+        },
+        {
+          "x": 1092.671875,
+          "y": 242.984375
+        }
+      ],
+      "viewport": 1512,
+      "bodyWidth": 1512,
+      "headTop": 94,
+      "sidebarExpanded": "true",
+      "drawer": {
+        "x": 972,
+        "y": 0,
+        "width": 540,
+        "height": 1100
+      },
+      "errors": []
+    },
+    {
+      "device": "手机",
+      "cardRects": [
+        {
+          "x": 16,
+          "y": 326.03125
+        },
+        {
+          "x": 304,
+          "y": 326.03125
+        },
+        {
+          "x": 592,
+          "y": 326.03125
+        }
+      ],
+      "viewport": 390,
+      "bodyWidth": 390,
+      "headTop": 94,
+      "sidebarExpanded": "false",
+      "drawer": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      },
+      "errors": []
+    }
+  ],
+  "real_workspace_data": {
+    "migrated_accounts": 3,
+    "legacy_accounts": 3,
+    "cash_matches": true,
+    "auto_flags_preserved": true,
+    "new_trades_during_implementation": 0,
+    "migration": "Original JSON retained; SQLite is now the source of new state. No migration reset."
+  },
+  "worker": {
+    "standalone_once_exit": 0,
+    "observed_live_state": {
+      "heartbeat": "2026-10-17T20:37:49.735066+08:00",
+      "status": "运行中",
+      "message": "当前为交易所休市日，仅可查看信号与持仓。",
+      "accounts": 3,
+      "pid": 36656
+    },
+    "local_process_only": true,
+    "system_startup_job_installed": false
+  },
+  "syntax": "py_compile passed for app, UI, store, execution, runtime, worker, quote adapter and signal module",
+  "design_detector": {
+    "scope": "source CSS/Python scan",
+    "findings": [],
+    "limitation": "Mechanical source scan is not a full accessibility audit."
+  },
+  "git_diff_check": "passed",
+  "execution_status": {
+    "local_implementation": "complete",
+    "local_validation": "passed",
+    "real_tail_session_validation": "not performed; current day is Saturday, 2026-10-17; no bypass of market gates",
+    "remote_deployment": "not performed",
+    "git_commit_or_push": "not performed"
+  },
+  "screenshots": [
+    "正式页面_桌面.png",
+    "正式页面_手机.png",
+    "正式调仓_手机.png",
+    "正式新增账户_桌面.png",
+    "正式新增账户_手机.png"
+  ]
+}

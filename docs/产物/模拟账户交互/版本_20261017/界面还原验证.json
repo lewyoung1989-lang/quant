@@ -1,0 +1,122 @@
+{
+  "formed_at": "2026-10-17T20:57:17+08:00",
+  "source": {
+    "platform": "Codex desktop",
+    "thread_id": "01a149aa-552c-7510-a168-f6ff9741392e",
+    "original_title": "待补",
+    "user_feedback": "这和demo差距有点大啊",
+    "design_authority": "用户此前确认的本版本 Demo",
+    "revised_visual_confirmation": "待用户复核"
+  },
+  "implementation": "Demo HTML/CSS frontend connected through a Streamlit component to the existing transactional Python services.",
+  "visual_basis": {
+    "styles_identical_to_approved_demo": true,
+    "styles_sha256": "ea0a69f7c20ea05b38a47b868644ac53ce1d22efef34868a01b82aa075a0e0df",
+    "icons_identical": true,
+    "intentional_differences": [
+      "actual account names, balances, positions and signals",
+      "no demo scenario toolbar",
+      "real quote/market/position execution conditions",
+      "fee setting and research navigation wired to actual application"
+    ]
+  },
+  "unit_tests": {
+    "passed": 34,
+    "failed": 0,
+    "command": ".venv/bin/python -m unittest discover -s tests -v",
+    "log": "界面还原测试日志.txt"
+  },
+  "browser": {
+    "passed": 16,
+    "failed": 0,
+    "checks": [
+      "真实服务快照显示",
+      "空名称校验",
+      "创建账户/金额预设/参数保存",
+      "执行及持仓现金更新/防重",
+      "成交记录与CSV导出",
+      "入金持久化",
+      "超额出金阻断",
+      "出金持久化",
+      "策略更换/更名/费率/自动保存",
+      "暂停保存",
+      "恢复保存",
+      "搜索/切换账户",
+      "键盘标签切换",
+      "研究入口往返",
+      "手机固定底栏提交",
+      "刷新后保留成交流水筛选"
+    ],
+    "errors": [],
+    "environment": "isolated temporary account directory with fixed quotes and 2026-10-16 14:50 test clock"
+  },
+  "visual_verification": [
+    {
+      "device": "桌面",
+      "viewport": 1512,
+      "bodyWidth": 1512,
+      "mainBottom": 1100,
+      "height": 1100,
+      "sidebarWidth": 194,
+      "headingSize": "27px",
+      "footer": {
+        "x": 982,
+        "y": 1027.8125,
+        "width": 530,
+        "height": 72.1875
+      },
+      "errors": []
+    },
+    {
+      "device": "平板",
+      "viewport": 900,
+      "bodyWidth": 900,
+      "mainBottom": 1100,
+      "height": 1100,
+      "sidebarWidth": 66,
+      "headingSize": "27px",
+      "errors": []
+    },
+    {
+      "device": "手机",
+      "viewport": 390,
+      "bodyWidth": 390,
+      "mainBottom": 844,
+      "height": 844,
+      "sidebarWidth": 390,
+      "headingSize": "23px",
+      "footer": {
+        "x": 0,
+        "y": 775.8125,
+        "width": 390,
+        "height": 68.1875
+      },
+      "errors": []
+    }
+  ],
+  "design_scan": {
+    "findings": [],
+    "mode": "degraded regex scan; parser dependencies absent; no computed contrast/accessibility certification"
+  },
+  "real_accounts": {
+    "count": 3,
+    "new_trades": 0,
+    "note": "Read-only screenshots and session selection only; browser mutations used isolated accounts."
+  },
+  "syntax": "node --check and py_compile passed",
+  "git_diff_check": "passed",
+  "status": {
+    "local_implementation": "complete",
+    "local_validation": "passed",
+    "real_tail_session_validation": "not performed",
+    "remote_deployment": "not performed",
+    "visual_user_review": "pending"
+  },
+  "screenshots": [
+    "界面还原_桌面.png",
+    "界面还原_平板.png",
+    "界面还原_手机.png",
+    "界面还原_新增_桌面.png",
+    "界面还原_新增_手机.png"
+  ]
+}
