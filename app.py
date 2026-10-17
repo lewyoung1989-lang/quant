@@ -1521,11 +1521,43 @@ elif strategy_mode == "红利高抛低吸":
         start_date = st.date_input("开始日期", pd.to_datetime("2019-04-19"))
         end_date = st.date_input("结束日期", pd.to_datetime("2026-10-09"))
 
-        with st.expander("更多设置 · 费率与网格档位"):
+        st.markdown("### 策略二 ERP 三档区域仓位自定义")
+        w_undervalue = st.slider(
+            "🟢 极具性价比/低估区仓位",
+            min_value=0.0,
+            max_value=1.0,
+            value=1.00,
+            step=0.05,
+            format="%.0f%%",
+            help="当股债利差分位数高于低吸阈值时的红利持仓比例，默认 100% 满仓。"
+        )
+        w_neutral = st.slider(
+            "🟡 稳健观察带/中性仓位",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.75,
+            step=0.05,
+            format="%.0f%%",
+            help="当股债利差处于常态观察带时的红利底仓比例，默认 75% 底仓。"
+        )
+        w_overheat = st.slider(
+            "🔥 极值过热区/高抛防守仓位",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.50,
+            step=0.05,
+            format="%.0f%%",
+            help="当股债利差跌破过热线时压降后的红利仓位，默认 50% 半仓。"
+        )
+
+        with st.expander("更多设置 · 费率与阈值微调"):
+            st.caption("分位线阈值自定义")
+            th_overheat = st.slider("过热高抛分位阈值", min_value=0.05, max_value=0.30, value=0.20, step=0.05, format="%.0f%%")
+            th_neutral = st.slider("低吸满仓分位阈值", min_value=0.25, max_value=0.60, value=0.35, step=0.05, format="%.0f%%")
             st.caption("ETF 交易免征印花税")
             fee_bp = st.number_input("双边交易佣金 (万分之)", value=1.0, step=0.5)
             slip_bp = st.number_input("双边滑点损耗 (万分之)", value=2.0, step=0.5)
-            core_ratio = st.slider("核心底仓比例 (不动)", min_value=0.2, max_value=0.8, value=0.5, step=0.1)
+            core_ratio = st.slider("核心底仓比例 (网格策略不动)", min_value=0.2, max_value=0.8, value=0.5, step=0.1)
 
         st.markdown(
             """
@@ -1579,18 +1611,36 @@ elif strategy_mode == "红利高抛低吸":
         unsafe_allow_html=True
     )
 
+    @st.cache_data(show_spinner=False)
+    def _get_cached_raw_dividend_data():
+        from strategies.dividend_lowvol_swing_backtest import load_or_sync_data, compute_indicators
+        df = load_or_sync_data()
+        return compute_indicators(df)
+
+    raw_data = _get_cached_raw_dividend_data()
+    last_erp_pct = raw_data["erp_pct"].iloc[-1]
+    if last_erp_pct <= th_overheat:
+        rec_weight = w_overheat
+        rec_status = f"🔥 估值过热区 (ERP ≤ {th_overheat*100:.0f}%)"
+    elif last_erp_pct <= th_neutral:
+        rec_weight = w_neutral
+        rec_status = f"🟡 稳健观察带 ({th_overheat*100:.0f}% < ERP ≤ {th_neutral*100:.0f}%)"
+    else:
+        rec_weight = w_undervalue
+        rec_status = f"🟢 极具性价比 (ERP > {th_neutral*100:.0f}%)"
+
     st.markdown(
-        """
+        f"""
         <div style="background:#ffffff; border:1px solid #DC2626; border-left:4px solid #DC2626; padding:12px 18px; margin: 14px 0 6px 0; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <strong style="color:#DC2626; font-size:13px;">📢 今日策略二调仓指引 (ERP 股债利差大波段择时)</strong>
+                <strong style="color:#DC2626; font-size:13px;">📢 今日策略二调仓指引 (ERP 股债利差大波段择时 · 自定义三档仓位生效中)</strong>
                 <p style="margin:3px 0 0 0; font-size:12px; color:#475569;">
-                    最新 ERP 历史分位：<b>20.3%</b> · 今日建议仓位：<b>75%</b> (稳健观察带，维持现有持仓，保持 25% 现金/国债对冲)。前往左侧导航<b>【今日调仓】</b>可执行模拟撮合。
+                    最新 ERP 历史分位：<b>{last_erp_pct*100:.1f}%</b> · 今日建议仓位：<b>{rec_weight*100:.0f}%</b> ({rec_status})。前往左侧导航<b>【今日调仓】</b>可执行模拟撮合。
                 </p>
             </div>
             <div style="text-align:right;">
                 <span style="font-size:11px; background:#FEF2F2; color:#DC2626; padding:4px 10px; border-radius:3px; font-weight:600; border:1px solid #FECACA;">
-                    距离 20% 极值高抛线仅差 0.3%
+                    极值过热 {w_overheat*100:.0f}% | 观察带 {w_neutral*100:.0f}% | 极具性价比 {w_undervalue*100:.0f}%
                 </span>
             </div>
         </div>
@@ -1598,27 +1648,38 @@ elif strategy_mode == "红利高抛低吸":
         unsafe_allow_html=True
     )
 
+    cost_rate = (fee_bp + slip_bp) / 10000.0
+
     if run_div_btn:
         with st.spinner("正在加载最新宏观估值与行情，重新执行三大高抛低吸策略撮合..."):
             try:
                 import io, contextlib
                 f_dummy = io.StringIO()
                 with contextlib.redirect_stdout(f_dummy), contextlib.redirect_stderr(f_dummy):
-                    run_dividend_backtest()
-                st.toast("红利高抛低吸全周期回测已完成！", icon="✅")
+                    run_dividend_backtest(
+                        w_overheat=w_overheat,
+                        w_neutral=w_neutral,
+                        w_undervalue=w_undervalue,
+                        th_overheat=th_overheat,
+                        th_neutral=th_neutral,
+                        cost_rate=cost_rate
+                    )
+                st.toast("红利高抛低吸全周期回测已完成并导出！", icon="✅")
                 st.rerun()
             except Exception as e:
                 st.error(f"回测执行异常: {e}")
 
-    # 读取并渲染回测数据
-    if not os.path.exists(DIVIDEND_SWING_REPORT_CSV):
-        with st.spinner("首次加载正在准备 512890 回测数据..."):
-            import io, contextlib
-            f_dummy = io.StringIO()
-            with contextlib.redirect_stdout(f_dummy), contextlib.redirect_stderr(f_dummy):
-                run_dividend_backtest()
-
-    df_div = pd.read_csv(DIVIDEND_SWING_REPORT_CSV, index_col=0, parse_dates=True)
+    # 动态实时运行真实撮合模拟 (含用户自定义的三档区域仓位与阈值)
+    from strategies.dividend_lowvol_swing_backtest import run_simulation
+    df_div = run_simulation(
+        raw_data,
+        w_overheat=w_overheat,
+        w_neutral=w_neutral,
+        w_undervalue=w_undervalue,
+        th_overheat=th_overheat,
+        th_neutral=th_neutral,
+        cost_rate=cost_rate
+    )
 
     # 按照所选日期切片并归一化净值
     sub_df = df_div.loc[(df_div.index >= pd.to_datetime(start_date)) & (df_div.index <= pd.to_datetime(end_date))].copy()
@@ -1799,7 +1860,7 @@ elif strategy_mode == "红利高抛低吸":
             )
             fig.update_yaxes(title_text="累计净值", row=1, col=1)
             fig.update_yaxes(title_text="回撤 %", row=2, col=1)
-            fig.update_yaxes(title_text="持仓 %", row=3, col=1, range=[30, 110])
+            fig.update_yaxes(title_text="持仓 %", row=3, col=1, range=[0, 110])
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -1819,7 +1880,13 @@ elif strategy_mode == "红利高抛低吸":
                 "策略三：BIAS+RSI 动量极值波段": "s3"
             }
             sel_key = strat_key_map.get(ledger_strat, "s2")
-            ledger_df, win_rate, total_closed, win_count = generate_trade_ledger(sub_df, raw_data, strat_key=sel_key)
+            ledger_df, win_rate, total_closed, win_count = generate_trade_ledger(
+                sub_df, 
+                raw_data, 
+                strat_key=sel_key,
+                th_overheat=th_overheat,
+                th_neutral=th_neutral
+            )
 
             # 4 大做 T 交易统计卡片
             k1, k2, k3, k4 = st.columns(4)

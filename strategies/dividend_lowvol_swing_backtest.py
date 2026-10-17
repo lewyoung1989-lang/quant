@@ -114,11 +114,21 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     return data
 
-def run_simulation(data: pd.DataFrame, warmup: int = 60):
+def run_simulation(
+    data: pd.DataFrame, 
+    warmup: int = 60,
+    w_overheat: float = 0.50,
+    w_neutral: float = 0.75,
+    w_undervalue: float = 1.00,
+    th_overheat: float = 0.20,
+    th_neutral: float = 0.35,
+    cost_rate: float = 0.0003
+):
     """
     运行策略回测撮合引擎
-    交易成本: 万1 佣金 (0.0001) + 万2 滑点 (0.0002) = 0.0003 双边换手成本
+    交易成本: 万1 佣金 (0.0001) + 万2 滑点 (0.0002) = 0.0003 双边换手成本 (支持自定义费率)
     闲置资金: 配置十年期国债 ETF (511260)，实现真正的股债平衡与现金管理
+    策略二 ERP: 支持自定义三档区域仓位与分位线阈值
     """
     valid_df = data.iloc[warmup:].copy()
     etf_ret = valid_df["close"].pct_change().fillna(0.0)
@@ -142,16 +152,16 @@ def run_simulation(data: pd.DataFrame, warmup: int = 60):
         else:
             w_atr.loc[dt] = 1.00
             
-    # 3. 策略二: ERP 股债利差大波段择时策略
-    w_erp = pd.Series(1.0, index=valid_df.index)
+    # 3. 策略二: ERP 股债利差大波段择时策略 (支持自定义三档仓位与分位阈值)
+    w_erp = pd.Series(w_undervalue, index=valid_df.index)
     for dt in valid_df.index:
         pct = valid_df.loc[dt, "erp_pct"]
-        if pct <= 0.20:
-            w_erp.loc[dt] = 0.50
-        elif pct <= 0.35:
-            w_erp.loc[dt] = 0.75
+        if pct <= th_overheat:
+            w_erp.loc[dt] = w_overheat
+        elif pct <= th_neutral:
+            w_erp.loc[dt] = w_neutral
         else:
-            w_erp.loc[dt] = 1.00
+            w_erp.loc[dt] = w_undervalue
             
     # 4. 策略三: BIAS 乖离率 + RSI 动量极值波段反转策略
     w_bias = pd.Series(1.0, index=valid_df.index)
@@ -169,7 +179,6 @@ def run_simulation(data: pd.DataFrame, warmup: int = 60):
             
     def simulate_weights(weights_series):
         nav = [1.0]
-        cost_rate = 0.0003
         w_list = [weights_series.iloc[0]]
         turnovers = [weights_series.iloc[0]]
         
@@ -215,7 +224,13 @@ def run_simulation(data: pd.DataFrame, warmup: int = 60):
         
     return report_df
 
-def generate_trade_ledger(report_df: pd.DataFrame, raw_df: pd.DataFrame = None, strat_key: str = "s2"):
+def generate_trade_ledger(
+    report_df: pd.DataFrame, 
+    raw_df: pd.DataFrame = None, 
+    strat_key: str = "s2",
+    th_overheat: float = 0.20,
+    th_neutral: float = 0.35
+):
     """
     重构生成指定策略的券商级逐笔做 T 交易交割流水单 (Trade Ledger)
     每一笔包含: 交割日期, 标的代码, 标的名称, 操作类型(高抛/低吸), 成交价, 仓位变动, 调仓份额, 单笔做T收益率, 持仓天数, 交割状态, 量化依据
@@ -262,7 +277,7 @@ def generate_trade_ledger(report_df: pd.DataFrame, raw_df: pd.DataFrame = None, 
             if raw_df is not None and dt in raw_df.index:
                 if strat_key == "s2":
                     pct = raw_df.loc[dt, "erp_pct"] * 100
-                    reason = f"ERP分位数={pct:.1f}% (<=20% 估值过热高抛)" if not is_buy else f"ERP分位数={pct:.1f}% (>35% 性价比良好低吸)"
+                    reason = f"ERP分位数={pct:.1f}% (<= {th_overheat*100:.0f}% 估值过热高抛)" if not is_buy else f"ERP分位数={pct:.1f}% (> {th_neutral*100:.0f}% 性价比良好低吸)"
                 elif strat_key == "s1":
                     ema = raw_df.loc[dt, "ema30"]
                     atr = raw_df.loc[dt, "atr20"]
@@ -402,7 +417,14 @@ def plot_interactive_curves(report_df: pd.DataFrame, save_path: str = "./reports
     fig.write_html(save_path)
     safe_print(f"[✓] 交互式净值曲线图已生成并保存至: {save_path}")
 
-def run_dividend_backtest():
+def run_dividend_backtest(
+    w_overheat: float = 0.50,
+    w_neutral: float = 0.75,
+    w_undervalue: float = 1.00,
+    th_overheat: float = 0.20,
+    th_neutral: float = 0.35,
+    cost_rate: float = 0.0003
+):
     safe_print("[*] 正在加载 512890 及相关资产数据...")
     df = load_or_sync_data()
     safe_print(f"[*] 数据加载完成: {len(df)} 交易日 ({df.index.min().strftime('%Y-%m-%d')} ~ {df.index.max().strftime('%Y-%m-%d')})")
@@ -410,8 +432,16 @@ def run_dividend_backtest():
     safe_print("[*] 正在计算技术与宏观指标 (ATR, EMA, ERP, BIAS, RSI)...")
     raw_df = compute_indicators(df)
     
-    safe_print("[*] 正在运行真实撮合交易模拟与净值计算...")
-    report_df = run_simulation(raw_df)
+    safe_print(f"[*] 正在运行真实撮合交易模拟与净值计算 (过热仓位={w_overheat*100:.0f}%, 观察带={w_neutral*100:.0f}%, 低估仓位={w_undervalue*100:.0f}%)...")
+    report_df = run_simulation(
+        raw_df,
+        w_overheat=w_overheat,
+        w_neutral=w_neutral,
+        w_undervalue=w_undervalue,
+        th_overheat=th_overheat,
+        th_neutral=th_neutral,
+        cost_rate=cost_rate
+    )
     
     # 导出日度明细 CSV
     csv_path = REPORT_DIR / "dividend_swing_daily_report.csv"
@@ -419,7 +449,13 @@ def run_dividend_backtest():
     safe_print(f"[✓] 回测每日净值与持仓明细已保存至: {csv_path}")
     
     # 生成默认策略二的券商交割单
-    ledger_df, win_rate, tot, wins = generate_trade_ledger(report_df, raw_df, strat_key="s2")
+    ledger_df, win_rate, tot, wins = generate_trade_ledger(
+        report_df, 
+        raw_df, 
+        strat_key="s2",
+        th_overheat=th_overheat,
+        th_neutral=th_neutral
+    )
     ledger_path = REPORT_DIR / "dividend_swing_trade_ledger.csv"
     ledger_df.to_csv(ledger_path, index=False)
     safe_print(f"[✓] 策略二券商交割账单已生成: 共 {tot} 笔平仓, 胜率 {win_rate:.1f}%")
