@@ -518,6 +518,227 @@ st.markdown(
         font-size: 11px;
         margin-bottom: 2px;
     }
+
+    /* ==========================================
+       demo.html 规范：专业极简交易台样式
+       ========================================== */
+    .sidebar-declutter-notice {
+        margin-top: auto;
+        padding-top: 18px;
+        font-size: 11px;
+        color: #94a3b8;
+        line-height: 1.5;
+        border-top: 1px solid #cbd3da;
+    }
+    .top-context-bar {
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 14px;
+        margin-bottom: 16px;
+    }
+    .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        margin-bottom: 18px;
+    }
+    .overview-cell {
+        padding: 14px 18px;
+        border-right: 1px solid #e2e8f0;
+    }
+    .overview-cell:last-child {
+        border-right: none;
+    }
+    .overview-label {
+        font-size: 12px;
+        color: #64748b;
+        margin-bottom: 3px;
+    }
+    .overview-val-box {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+    }
+    .overview-val {
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.25;
+    }
+    .overview-sub {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+    .wb-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 18px;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        margin-bottom: 16px;
+    }
+    .card-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+    }
+    .card-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+    .card-subtitle {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+    .target-box {
+        background: rgba(248, 250, 252, 0.85);
+        border: 1px solid #f1f5f9;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 10px;
+    }
+    .target-badge-red {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fee2e2;
+    }
+    .target-badge-blue {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+    }
+    .target-code {
+        font-size: 11px;
+        color: #94a3b8;
+    }
+    .stat-pos {
+        color: #dc2626;
+        font-size: 17px;
+        font-weight: 700;
+    }
+    .stat-neg {
+        color: #059669;
+        font-size: 17px;
+        font-weight: 700;
+    }
+    .factor-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px 14px;
+        font-size: 12px;
+        color: #334155;
+        line-height: 1.6;
+        margin: 10px 0;
+    }
+    .progress-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #64748b;
+    }
+    .progress-track {
+        width: 100%;
+        background: #e2e8f0;
+        height: 9px;
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-top: 6px;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.4s ease;
+    }
+    .progress-fill-blue { background: #3b82f6; }
+    .progress-fill-red { background: #ef4444; }
+    .progress-fill-green { background: #10b981; }
+
+    .signal-box-empty {
+        background: rgba(236, 253, 245, 0.75);
+        border: 1px solid #a7f3d0;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+    .signal-box-trigger {
+        background: rgba(254, 242, 242, 0.85);
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+    .signal-box-holding {
+        background: rgba(239, 246, 255, 0.75);
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+    .dot-green {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #10b981;
+        display: inline-block;
+    }
+    .dot-red-ping {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #dc2626;
+        display: inline-block;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+    }
+    .dot-blue {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #2563eb;
+        display: inline-block;
+    }
+    .order-list-box {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px 14px;
+        background: #f8fafc;
+        margin-bottom: 12px;
+    }
+    .order-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        background: #ffffff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        margin-top: 6px;
+    }
+    .manual-panel-box {
+        border: 1px solid #bfdbfe;
+        background: rgba(239, 246, 255, 0.55);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -553,218 +774,111 @@ universe_options = {
 }
 
 # ==========================================
-# 模式一：今日调仓 (实盘盯盘与模拟委托)
+# 模式一：今日调仓 (实盘盯盘与模拟委托 - demo.html 专业重构版)
 # ==========================================
 if strategy_mode == "今日调仓":
     all_accs = get_all_accounts()
     acc_names = list(all_accs.keys())
 
-    # 1. 侧边栏：今日调仓专属参数
+    # 1. 侧边栏：极简模式，仅保留轻量账户资金管理折叠框与减负提示
     with st.sidebar:
-        st.markdown("### 调仓设置")
-        plan_strat_type = st.radio(
-            "选择调仓策略",
-            ["⭐ 红利低波ERP利差高抛低吸 (策略二)", "🔄 攻守动量轮动 (双资产切换)"],
-            index=0,
-            help="【策略二】华泰低波 512890 结合股债利差估值做T与大波段；【攻守动量轮动】创业板/双创50与红利/国债动量切换"
-        )
+        with st.expander("⚙️ 账户管理与资金设置", expanded=False):
+            st.caption("模拟账户资金重置或新建：")
+            mgmt_acc = st.selectbox("选择管理账户", acc_names, index=0, key="sb_mgmt_acc")
+            mgmt_obj = all_accs.get(mgmt_acc, {})
 
-        is_dividend_plan = ("红利低波" in plan_strat_type)
+            auto_trade_toggle = st.toggle("尾盘自动模拟调仓", value=mgmt_obj.get("auto_trade", True), help="仅在 14:45–14:55 时间窗触发自动撮合。")
+            if auto_trade_toggle != mgmt_obj.get("auto_trade", True):
+                mgmt_obj["auto_trade"] = auto_trade_toggle
+                save_current_position(mgmt_obj, account_name=mgmt_acc)
 
-        if is_dividend_plan:
-            div_accs = [k for k in acc_names if "红利" in k or "3" in k]
-            if not div_accs:
-                div_accs = acc_names
-            sel_acc = st.selectbox("模拟账户", div_accs, index=0)
-            acc_obj = all_accs.get(sel_acc, {})
-
-            st.caption("核心标的：**华泰柏瑞红利低波 ETF (512890)**")
-            st.caption("闲置对冲：**十年国债 ETF (511260)** / 现金")
-
-            with st.expander("账户与自动调仓"):
-                auto_trade_toggle = st.toggle("尾盘自动模拟调仓", value=acc_obj.get("auto_trade", True), help="仅在 14:45–14:55 时间窗触发自动撮合。")
-                if auto_trade_toggle != acc_obj.get("auto_trade", True):
-                    acc_obj["auto_trade"] = auto_trade_toggle
-                    save_current_position(acc_obj, account_name=sel_acc)
-
-                new_acc_name = st.text_input("新建红利模拟账户", placeholder="例如: 红利实盘 2 号")
-                init_cap = st.number_input("初始虚拟资金 (元)", value=100000.0, step=10000.0)
-                if st.button("新建模拟账户", use_container_width=True):
-                    if new_acc_name.strip():
-                        save_current_position({
-                            "initial_capital": float(init_cap),
-                            "holding_symbol": "sh512890",
-                            "holding_amount": 0,
-                            "bond_symbol": "sh511260",
-                            "bond_amount": 0,
-                            "cash_available": float(init_cap),
-                            "strategy_type": "dividend_erp",
-                            "auto_trade": auto_trade_toggle
-                        }, account_name=new_acc_name.strip())
-                        st.toast(f"已创建账户: {new_acc_name.strip()}", icon="✅")
-                        st.rerun()
-
-                st.markdown("---")
-                if st.button("🔄 重置当前账户资金为 10 万元现金", use_container_width=True, help="清空当前持仓，并将可用资金重置为初始 10 万元现金。"):
+            new_acc_name = st.text_input("新建模拟账户", placeholder="例如: 稳健攻守 3 号")
+            init_cap = st.number_input("初始虚拟资金 (元)", value=100000.0, step=10000.0)
+            if st.button("新建模拟账户", use_container_width=True, key="btn_create_acc"):
+                if new_acc_name.strip():
                     save_current_position({
-                        "initial_capital": 100000.0,
-                        "holding_symbol": "sh512890",
-                        "holding_amount": 0,
-                        "bond_symbol": "sh511260",
-                        "bond_amount": 0,
-                        "cash_available": 100000.0,
-                        "strategy_type": "dividend_erp",
-                        "auto_trade": auto_trade_toggle
-                    }, account_name=sel_acc)
-                    st.toast(f"已重置【{sel_acc}】为 10 万元现金待命状态！", icon="🔄")
-                    st.rerun()
-
-                if st.button("🎯 重设当前账户为 75% 稳健底仓状态", use_container_width=True, help="重置持仓为 61,500 股 512890 (约 75% 仓位)。"):
-                    save_current_position({
-                        "initial_capital": 100000.0,
-                        "holding_symbol": "sh512890",
-                        "holding_amount": 61500,
-                        "bond_symbol": "sh511260",
-                        "bond_amount": 0,
-                        "cash_available": 25031.5,
-                        "strategy_type": "dividend_erp",
-                        "auto_trade": auto_trade_toggle
-                    }, account_name=sel_acc)
-                    st.toast(f"已重设【{sel_acc}】为 75% 稳健底仓状态！", icon="🎯")
-                    st.rerun()
-
-            with st.expander("更多设置 · 门禁与费率"):
-                st.caption("• 极值过热线: ERP ≤ 20% (高抛减仓至 50%)")
-                st.caption("• 稳健观察带: 20% < ERP ≤ 35% (维持 75% 仓位)")
-                st.caption("• 极具性价比: ERP > 35% (低吸满仓 100%)")
-                st.caption("• 交易费率: 双边万3 (ETF 免征印花税)")
-
-        else:
-            rot_accs = [k for k in acc_names if "红利" not in k and "3" not in k]
-            if not rot_accs:
-                rot_accs = acc_names
-            sel_acc = st.selectbox("模拟账户", rot_accs, index=0)
-
-            live_tech_opts = {
-                "sz159915": "创业板ETF · 159915",
-                "sh588380": "双创50ETF · 588380"
-            }
-            live_def_opts = {
-                "sh512890": "红利低波ETF · 512890",
-                "sh511010": "国债ETF · 511010"
-            }
-
-            acc_obj = all_accs.get(sel_acc, {})
-            def_tech_key = acc_obj.get("tech_symbol", "sz159915" if "1" in sel_acc else "sh588380")
-            def_def_key = acc_obj.get("def_symbol", "sh512890" if "1" in sel_acc else "sh511010")
-
-            tech_idx = list(live_tech_opts.keys()).index(def_tech_key) if def_tech_key in live_tech_opts else 0
-            def_idx = list(live_def_opts.keys()).index(def_def_key) if def_def_key in live_def_opts else 0
-
-            cur_tech = st.selectbox("进攻标的", list(live_tech_opts.keys()), format_func=lambda x: live_tech_opts[x], index=tech_idx)
-            cur_def = st.selectbox("防守标的", list(live_def_opts.keys()), format_func=lambda x: live_def_opts[x], index=def_idx)
-            cur_window = st.slider("动量周期", min_value=5, max_value=60, value=int(acc_obj.get("lookback_window", 20)), step=5)
-
-            with st.expander("账户与自动调仓"):
-                auto_trade_toggle = st.toggle("尾盘自动模拟调仓", value=acc_obj.get("auto_trade", True), help="仅在 14:45–14:55 时间窗触发自动撮合。")
-                if auto_trade_toggle != acc_obj.get("auto_trade", True):
-                    acc_obj["auto_trade"] = auto_trade_toggle
-                    save_current_position(acc_obj, account_name=sel_acc)
-
-                new_acc_name = st.text_input("新建账户名称", placeholder="例如: 稳健攻守 3 号")
-                init_cap = st.number_input("初始虚拟资金 (元)", value=100000.0, step=10000.0)
-                if st.button("新建模拟账户", use_container_width=True):
-                    if new_acc_name.strip():
-                        save_current_position({
-                            "initial_capital": float(init_cap),
-                            "holding_symbol": "",
-                            "holding_amount": 0,
-                            "cash_available": float(init_cap),
-                            "tech_symbol": cur_tech,
-                            "def_symbol": cur_def,
-                            "lookback_window": cur_window,
-                            "auto_trade": auto_trade_toggle
-                        }, account_name=new_acc_name.strip())
-                        st.toast(f"已创建账户: {new_acc_name.strip()}", icon="✅")
-                        st.rerun()
-
-                st.markdown("---")
-                if st.button("🔄 重置当前账户资金为 10 万元", use_container_width=True, help="清空当前持仓，并将可用资金重置为初始 10 万元。"):
-                    save_current_position({
-                        "initial_capital": 100000.0,
+                        "initial_capital": float(init_cap),
                         "holding_symbol": "",
                         "holding_amount": 0,
-                        "cash_available": 100000.0,
-                        "tech_symbol": cur_tech,
-                        "def_symbol": cur_def,
-                        "lookback_window": cur_window,
+                        "cash_available": float(init_cap),
+                        "tech_symbol": "sh588380",
+                        "def_symbol": "sh511010",
+                        "lookback_window": 20,
                         "auto_trade": auto_trade_toggle
-                    }, account_name=sel_acc)
-                    st.toast(f"已重置【{sel_acc}】为 10 万元现金待命状态！", icon="🔄")
+                    }, account_name=new_acc_name.strip())
+                    st.toast(f"已创建账户: {new_acc_name.strip()}", icon="✅")
                     st.rerun()
 
-            with st.expander("更多设置 · 费率与基准"):
-                benchmark = st.text_input("基准标的", "SH000300")
-                open_cost_bp = st.number_input("买入佣金 (万分之)", value=1.0, step=0.5)
-                close_cost_bp = st.number_input("卖出费率 (万分之)", value=1.0, step=0.5)
-                st.caption("ETF 免征印花税，仅收取券商佣金 (通常为万1)。")
+            st.markdown("---")
+            if st.button("🔄 重置当前账户资金为 10 万元现金", use_container_width=True, key="btn_reset_acc"):
+                save_current_position({
+                    "initial_capital": 100000.0,
+                    "holding_symbol": "",
+                    "holding_amount": 0,
+                    "cash_available": 100000.0,
+                    "tech_symbol": mgmt_obj.get("tech_symbol", "sh588380"),
+                    "def_symbol": mgmt_obj.get("def_symbol", "sh511010"),
+                    "lookback_window": 20,
+                    "auto_trade": auto_trade_toggle
+                }, account_name=mgmt_acc)
+                st.toast(f"已重置【{mgmt_acc}】为 10 万元现金待命状态！", icon="🔄")
+                st.rerun()
 
         st.markdown(
             """
-            <div class="source-note">
-                <b>数据来源</b>
-                Qlib 历史数据 · 新浪实时行情<br>
-                实盘交易请遵循合规与风险管理
+            <div class="sidebar-declutter-notice">
+                <b>侧边栏已减负</b><br>
+                账户与标的已移至右侧主视图
             </div>
             """,
             unsafe_allow_html=True
         )
 
-    # 顶栏面包屑
-    crumb_sub = "今日调仓 (策略二 · 红利低波ERP择时)" if is_dividend_plan else "今日调仓 (攻守动量轮动)"
-    st.markdown(
-        f"""
-        <div class="top-crumb-bar">
-            <span class="crumb-left"><strong>模拟交易</strong> / <span>{crumb_sub}</span></span>
-            <span class="crumb-badge">实盘监控 · 模拟撮合</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # 2. 顶部上下文控制栏（账户与策略联动 + 实盘行情时效状态 + 刷新按钮）
+    if "selected_account" not in st.session_state or st.session_state["selected_account"] not in acc_names:
+        st.session_state["selected_account"] = "模拟实盘 2 号 (双创50+国债ETF)" if "模拟实盘 2 号 (双创50+国债ETF)" in acc_names else acc_names[0]
 
-    # 头部标题与“刷新行情”按钮
-    c_head_left, c_head_right = st.columns([4, 1])
+    cur_acc_name = st.session_state["selected_account"]
+    default_strat = "⭐ 红利低波ERP利差高抛低吸" if ("红利" in cur_acc_name or "3" in cur_acc_name) else "🔄 攻守动量轮动 (双资产切换)"
+    if "top_sel_strat" not in st.session_state:
+        st.session_state["top_sel_strat"] = default_strat
+
+    def _sync_strat_from_acc():
+        acc = st.session_state["top_sel_acc"]
+        st.session_state["selected_account"] = acc
+        if "红利" in acc or "3" in acc:
+            st.session_state["top_sel_strat"] = "⭐ 红利低波ERP利差高抛低吸"
+        else:
+            st.session_state["top_sel_strat"] = "🔄 攻守动量轮动 (双资产切换)"
+        st.session_state.pop("inplace_sel_tech", None)
+        st.session_state.pop("inplace_sel_def", None)
+
+    strat_options = ["🔄 攻守动量轮动 (双资产切换)", "⭐ 红利低波ERP利差高抛低吸"]
+
+    st.markdown('<div class="top-context-bar">', unsafe_allow_html=True)
+    c_acc, c_strat, c_stat, c_ref = st.columns([2.8, 2.8, 4.4, 1.2], gap="small")
+
+    with c_acc:
+        sel_acc = st.selectbox(
+            "当前模拟账户",
+            acc_names,
+            index=acc_names.index(cur_acc_name),
+            key="top_sel_acc",
+            on_change=_sync_strat_from_acc
+        )
+    with c_strat:
+        sel_strat = st.selectbox(
+            "绑定调仓策略 ⓘ",
+            strat_options,
+            index=strat_options.index(st.session_state["top_sel_strat"]),
+            key="top_sel_strat",
+            help="跟随账户自动匹配，亦可手动切换策略"
+        )
+
     now_dt = datetime.datetime.now()
     weekday_cn = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-    date_str = f"{now_dt.year} 年 {now_dt.month:02d} 月 {now_dt.day:02d} 日　{weekday_cn[now_dt.weekday()]}"
+    date_str = f"{now_dt.year}年{now_dt.month:02d}月{now_dt.day:02d}日 {weekday_cn[now_dt.weekday()]}"
 
-    page_title = "今日调仓 · 策略二 (红利低波 ERP 择时)" if is_dividend_plan else "今日调仓 · 攻守动量轮动"
-    with c_head_left:
-        st.markdown(
-            f"""
-            <div class="page-head" style="margin-bottom:0;">
-                <div>
-                    <h1>{page_title}</h1>
-                    <p>{date_str}</p>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    with c_head_right:
-        st.write("")
-        refresh_clicked = st.button("刷新行情", use_container_width=True)
-
-    # 优化点 3：行情数据 5 秒短期缓存，点击“刷新行情”时强制打透
-    if "refresh_seq" not in st.session_state:
-        st.session_state["refresh_seq"] = 0
-
-    if refresh_clicked:
-        st.cache_data.clear()
-        st.session_state["refresh_seq"] += 1
-        st.toast("最新行情已刷新！", icon="🔄")
-
-    # 根据当前时间显式区分状态
     now_hour = now_dt.hour
     now_minute = now_dt.minute
     is_trade_day = now_dt.weekday() < 5
@@ -772,16 +886,45 @@ if strategy_mode == "今日调仓":
     is_intraday = is_trade_day and ((9 <= now_hour < 11 or (now_hour == 11 and now_minute <= 30)) or (13 <= now_hour < 15))
 
     if in_exec_window:
-        status_tag_html = '<span class="decision-status-tag pos"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#aa3d33;margin-right:5px;"></span>🔥 尾盘窗口 · 允许调仓确认</span>'
+        dot_html = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 2px rgba(239,68,68,0.3);"></span>'
+        status_text = "尾盘调仓窗口 · 撮合中"
     elif is_intraday:
-        status_tag_html = '<span class="decision-status-tag" style="color:#856121;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#9d762f;margin-right:5px;"></span>● 盘中监控 · 以尾盘确认结果为准</span>'
+        dot_html = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;"></span>'
+        status_text = "交易中 · 实时盯盘"
     else:
-        status_tag_html = '<span class="decision-status-tag" style="color:#606c78;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#8e9eab;margin-right:5px;"></span>⚪ 休市盘后 · 历史收盘定型</span>'
+        dot_html = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;"></span>'
+        status_text = "休市盘后"
 
+    with c_stat:
+        st.markdown(f"""
+        <div style="text-align:right; padding-top:4px;">
+            <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                {dot_html}
+                <span style="font-size:12px; font-weight:500; color:#334155;">{date_str} · {status_text}</span>
+                <span style="font-size:11px; background:#f1f5f9; border:1px solid #e2e8f0; padding:1px 6px; border-radius:4px; color:#64748b;">实盘监控 · 模拟撮合</span>
+            </div>
+            <p style="font-size:11px; color:#94a3b8; margin:2px 0 0 0;">行情更新于 {now_dt.strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c_ref:
+        st.write("")
+        if st.button("🔄 刷新行情", use_container_width=True, key="btn_refresh_quote"):
+            st.cache_data.clear()
+            st.session_state["refresh_seq"] = st.session_state.get("refresh_seq", 0) + 1
+            st.toast("行情与因子已刷新！", icon="🔄")
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if "refresh_seq" not in st.session_state:
+        st.session_state["refresh_seq"] = 0
+
+    is_dividend_plan = ("红利低波" in sel_strat)
+    acc_obj = all_accs.get(sel_acc, {})
+
+    # 3. 策略数据获取
     if is_dividend_plan:
-        # ==========================================
-        # 策略二：红利低波 ERP 调仓方案计算与渲染
-        # ==========================================
         @st.cache_data(ttl=5, show_spinner=False)
         def _fetch_div_plan_cached(acc, seq):
             return generate_dividend_rebalance_plan(account_name=acc)
@@ -793,302 +936,38 @@ if strategy_mode == "今日调仓":
         pos = plan["position"]
         init_capital = float(pos.get("initial_capital", 100000.0))
         total_return_pct = ((port["total_assets"] - init_capital) / init_capital) * 100
-
-        # 自动调仓检测与撮合
-        if auto_trade_toggle:
-            exec_res = execute_dividend_simulated_rebalance(sel_acc)
-            if exec_res.get("executed"):
-                st.toast(f"自动调仓已执行: {exec_res['message']}", icon="🚀")
-
-        # 浅底决策条
-        action_text = plan['summary_action']
-        quote_time = sig['etf'].get('quote_time', now_dt.strftime('%H:%M:%S'))
-        st.markdown(
-            f"""
-            <section class="decision-banner" aria-label="今日决策">
-                <div class="decision-main">
-                    {status_tag_html}
-                    <h2>{action_text}</h2>
-                    <p>{plan['reason']}</p>
-                </div>
-                <div class="decision-time-box">
-                    <small>模拟调仓时间</small>
-                    <strong>14:45–14:55</strong>
-                    <p class="time-stamp">行情更新于 {quote_time}</p>
-                </div>
-            </section>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # 紧凑账户概况条
-        ret_color_cls = "pos" if total_return_pct > 0 else ("neg" if total_return_pct < 0 else "")
-        ret_sign = "+" if total_return_pct > 0 else ""
-        holding_desc = f"{port['current_holding_name']} ({port['current_weight']*100:.1f}%)" if port['current_shares'] > 0 else "空仓"
-
-        st.markdown(
-            f"""
-            <section class="account-strip" aria-label="账户概况">
-                <div class="account-cell">
-                    <div class="acc-label"><strong>{sel_acc}</strong></div>
-                    <div class="acc-tag" style="color:#606c78;">红利做 T 账户</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">总资产</div>
-                    <div class="acc-val">¥{port['total_assets']:,.2f}</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">华泰低波市值</div>
-                    <div class="acc-val">¥{port['market_value']:,.2f} ({port['current_shares']:,}股)</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">对冲/现金可用</div>
-                    <div class="acc-val">¥{port['cash'] + port.get('bond_value', 0):,.2f}</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">目标仓位比例</div>
-                    <div class="acc-val" style="color:#DC2626;"><b>{int(port['target_weight']*100)}%</b></div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">累计收益</div>
-                    <div class="acc-val {ret_color_cls}">{ret_sign}{total_return_pct:.2f}%</div>
-                </div>
-            </section>
-            """,
-            unsafe_allow_html=True
-        )
-
-        col_main, col_rail = st.columns([1.65, 1.0], gap="medium")
-
-        with col_main:
-            real_trades = [o for o in orders if o.get("action") in ["买入", "卖出"]]
-            if real_trades:
-                order_rows_html = ""
-                for o in real_trades:
-                    action_cls = "pos" if o["action"] == "买入" else "neg"
-                    sym_upper = o["symbol"].upper()
-                    order_rows_html += f"<tr><td><b class='{action_cls}'>{o['action']}</b></td><td><b>{o['name']}</b><small>{sym_upper}</small></td><td class='n'>{o['shares']:,}</td><td class='n'>{o['price']:.3f}</td><td class='n'>{o['est_amount']:,.2f}</td></tr>"
-
-                render_html(
-                    f"""
-                    <div class="panel-box">
-                        <div class="panel-header">
-                            <h2>红利做 T 调仓清单</h2>
-                            <small>{len(real_trades)} 笔委托 · 策略二 ERP 利差驱动</small>
-                        </div>
-                        <div class="table-wrap">
-                            <table class="workbench-table">
-                                <thead>
-                                    <tr>
-                                        <th>方向</th>
-                                        <th>证券名称 / 代码</th>
-                                        <th class="n">数量（股）</th>
-                                        <th class="n">参考价</th>
-                                        <th class="n">预计金额</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {order_rows_html}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="order-summary-bar">
-                            <span>免印花税，仅收券商经手费与佣金；以实际模拟撮合结果为准。</span>
-                            <span style="color:#856121; font-weight:600;">{'尾盘待执行' if in_exec_window else '待尾盘执行'}</span>
-                        </div>
-                    </div>
-                    """
-                )
-
-                if in_exec_window:
-                    exec_card_class = "active"
-                    exec_title = "当前处于尾盘决策窗口 (14:45–14:55)"
-                    exec_desc = "价格与宏观利差已定型，系统可执行确定性高抛低吸！"
-                else:
-                    exec_card_class = "disabled"
-                    exec_title = "尚未进入执行时间"
-                    exec_desc = f"当前为盘中监控期 (现时间 {now_dt.strftime('%H:%M:%S')})，策略严格规定 14:45–14:55 方可执行调仓。"
-
-                c_info, c_btn = st.columns([2.5, 1.3])
-                with c_info:
-                    render_html(
-                        f"""
-                        <div class="exec-card {exec_card_class}" style="border: 1px solid var(--line); margin-top:-6px; border-radius:0;">
-                            <div>
-                                <strong>{exec_title}</strong>
-                                <p>{exec_desc}</p>
-                            </div>
-                        </div>
-                        """
-                    )
-                with c_btn:
-                    st.write("")
-                    btn_help = "已在 14:45~14:55 窗口内，点击立即模拟调仓" if in_exec_window else "当前未在 14:45~14:55 窗口内，按钮已禁用"
-                    if st.button("执行模拟调仓", type="primary" if in_exec_window else "secondary", disabled=not in_exec_window, help=btn_help, use_container_width=True, key="btn_exec_div"):
-                        res = execute_dividend_simulated_rebalance(sel_acc, force_auto=True)
-                        if res.get("success"):
-                            st.success(res.get("message", "调仓执行成功！"))
-                            st.rerun()
-                        else:
-                            st.error(res.get("message", "调仓执行失败"))
-            else:
-                hold_shares = port.get('current_shares', 0)
-                hold_mv = port.get('market_value', 0.0)
-                target_pct = int(port['target_weight'] * 100)
-                setup_o = plan.get("setup_order", {})
-
-                if hold_shares > 0:
-                    card_icon = "✅"
-                    card_title = f"持仓与目标一致 · 今日保持 {target_pct}% 稳健持仓"
-                    card_desc = f"当前持有 <b>华泰低波红利ETF</b> ({hold_shares:,} 股 / 市值 ¥{hold_mv:,.2f})，仓位比例吻合策略目标，今日无调仓需求。"
-                    exec_title = f"保持现有 {target_pct}% 仓位"
-                    exec_desc = "尾盘无需进行调仓下单，继续享受红利分红与底仓生息。"
-                    btn_text = "无需调仓 (仓位匹配)"
-                else:
-                    card_icon = "⚪"
-                    card_title = f"当前空仓 · 策略目标建议建仓至 {target_pct}%"
-                    card_desc = f"当前账户全额现金，策略目标建议配置 {target_pct}% 华泰低波红利底仓。"
-                    exec_title = "尚未建立底仓"
-                    exec_desc = "可点击下方快捷入口一键建立模拟底仓。"
-                    btn_text = "尚未建仓"
-
-                render_html(
-                    f"""
-                    <div class="panel-box">
-                        <div class="panel-header">
-                            <h2>红利做 T 调仓清单</h2>
-                            <small>{'当前持仓与目标一致' if hold_shares > 0 else '空仓待建仓'} · 无需委托</small>
-                        </div>
-                        <div style="padding: 24px 20px; background: #ffffff;">
-                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                                <span style="font-size:20px;">{card_icon}</span>
-                                <div>
-                                    <b style="font-size:13px; color:#202b36;">{card_title}</b>
-                                    <p style="font-size:12px; color:#606c78; margin:2px 0 0 0;">
-                                        {card_desc}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="exec-card active" style="border-top:1px solid var(--line);">
-                            <div>
-                                <strong>{exec_title}</strong>
-                                <p>{exec_desc}</p>
-                            </div>
-                            <button class="stButton" disabled style="background:#eaf0f4; border:1px solid #d8dee4; border-radius:3px; padding:6px 12px; font-size:12px; color:#77808d; cursor:not-allowed;">{btn_text}</button>
-                        </div>
-                    </div>
-                    """
-                )
-
-                if hold_shares == 0 and setup_o.get("shares", 0) > 0:
-                    with st.expander("🛒 一键跟随策略二建立模拟底仓", expanded=True):
-                        st.caption(f"当前策略目标为持有【{target_pct}% 华泰低波红利】。点击下方按钮将使用可用现金（¥{port['cash']:,.2f}）建立模拟底仓（买入 {setup_o['shares']:,} 股，预估金额 ¥{setup_o['est_amount']:,.2f}）。")
-                        if st.button("一键建立红利低波模拟底仓", type="primary", use_container_width=True, key="btn_setup_div"):
-                            remain_cash = port['total_assets'] - setup_o['est_amount']
-                            save_current_position({
-                                "initial_capital": init_capital,
-                                "holding_symbol": "sh512890",
-                                "holding_amount": int(setup_o["shares"]),
-                                "bond_symbol": "sh511260",
-                                "bond_amount": 0,
-                                "cash_available": max(0.0, round(remain_cash, 2)),
-                                "strategy_type": "dividend_erp",
-                                "auto_trade": auto_trade_toggle
-                            }, account_name=sel_acc)
-                            record_trade_log(sel_acc, "低吸建仓", "sh512890", setup_o["shares"], setup_o["price"], setup_o["est_amount"], reason="用户一键跟随策略建立红利底仓")
-                            st.success(f"已为【{sel_acc}】建立底仓：华泰低波红利 ({setup_o['shares']:,} 股)！")
-                            st.rerun()
-
-            st.caption("此环境为模拟实盘撮合，在 14:45–14:55 时间窗内点击执行将记入账户流水。")
-
-            with st.expander("▶ 历史做 T 调仓记录", expanded=False):
-                acc_logs = get_trade_logs(account_name=sel_acc)
-                if acc_logs:
-                    st.dataframe(pd.DataFrame(acc_logs), use_container_width=True, hide_index=True)
-                else:
-                    render_html(
-                        """
-                        <div style="background:#fff; border:1px solid var(--line); padding:16px; font-size:12px;">
-                            <b>暂无调仓记录</b>
-                            <p style="color:#606c78; font-size:11px; margin-top:4px;">执行模拟高抛低吸后，这里将显示时间、标的、数量、价格与成交流水。</p>
-                        </div>
-                        """
-                    )
-
-        with col_rail:
-            etf_sig = sig["etf"]
-            bond_sig = sig["bond"]
-            ind = sig["indicators"]
-
-            etf_cls = "pos" if etf_sig["chg_pct"] >= 0 else "neg"
-            bond_cls = "pos" if bond_sig["chg_pct"] >= 0 else "neg"
-            etf_sign = "+" if etf_sig["chg_pct"] >= 0 else ""
-            bond_sign = "+" if bond_sig["chg_pct"] >= 0 else ""
-
-            render_html(
-                f"""
-                <aside class="market-rail-box" aria-label="信号与行情">
-                    <div class="rail-header">
-                        <h2>行情与 ERP 估值</h2>
-                        <small>策略二实时监控</small>
-                    </div>
-                    <div class="quote-item">
-                        <div class="quote-top-line">
-                            <span>华泰低波红利</span>
-                            <small style="color:#606c78;">核心标的 / 512890</small>
-                        </div>
-                        <div class="quote-bot-line">
-                            <strong>{etf_sig['price']:.3f}</strong>
-                            <span class="{etf_cls}" style="font-size:13px; font-weight:600;">{etf_sign}{etf_sig['chg_pct']:.2f}%</span>
-                        </div>
-                    </div>
-                    <div class="quote-item">
-                        <div class="quote-top-line">
-                            <span>十年国债ETF</span>
-                            <small style="color:#606c78;">对冲避险 / 511260</small>
-                        </div>
-                        <div class="quote-bot-line">
-                            <strong>{bond_sig['price']:.3f}</strong>
-                            <span class="{bond_cls}" style="font-size:13px; font-weight:600;">{bond_sign}{bond_sig['chg_pct']:.2f}%</span>
-                        </div>
-                    </div>
-                    <div style="padding-top:14px;">
-                        <h3 style="font-size:12px; font-weight:650; margin:0 0 8px 0; color:#202b36;">核心利差监控</h3>
-                        <div style="font-size:11px; color:#53616d; line-height:1.8;">
-                            <div>• 股债风险溢价 ERP: <b>{ind['erp']:.2f}%</b></div>
-                            <div>• 250日历史滚动分位: <b style="color:#DC2626;">{ind['erp_pct']*100:.1f}%</b></div>
-                            <div>• 指数滚动市盈率 PE: <b>{ind['pe']:.2f} 倍</b></div>
-                            <div>• 十年期国债收益率: <b>{ind['rate_10y']:.4f}%</b></div>
-                        </div>
-                    </div>
-                </aside>
-                """
-            )
-
-            with st.expander("▶ 查看策略门禁与安全边际", expanded=False):
-                st.markdown("##### 宏观利差门禁规则检测")
-                for k, v in sig["conditions"].items():
-                    icon = "🟢 满足" if v["passed"] else "⚪ 未触发"
-                    st.markdown(f"- {icon}: **{v['name']}**")
-
-                st.caption(f"""
-                **安全边际测算**:
-                - 距离 20% 极值高抛线: `{(ind['erp_pct'] - 0.20)*100:+.1f}%`
-                - 距离 35% 观察带上限: `{(ind['erp_pct'] - 0.35)*100:+.1f}%`
-                - 距离 80% 极值低吸线: `{(ind['erp_pct'] - 0.80)*100:+.1f}%`
-                """)
-
-                st.markdown("##### 行情数据质量")
-                t_age = etf_sig.get('age_seconds', 0)
-                d_age = bond_sig.get('age_seconds', 0)
-                st.markdown(f"- 512890 行情时效: **{t_age} 秒前** ({'正常 🟢' if t_age < 60 else '延迟 ⚠️'})")
-                st.markdown(f"- 511260 行情时效: **{d_age} 秒前** ({'正常 🟢' if d_age < 60 else '延迟 ⚠️'})")
+        pnl_amount = port["total_assets"] - init_capital
+        hold_shares = port.get('current_shares', 0)
+        target_name = "华泰低波红利"
+        hold_name = "华泰低波红利 (512890)" if hold_shares > 0 else "空仓"
 
     else:
-        # ==========================================
-        # 攻守动量轮动：调仓方案计算与渲染
-        # ==========================================
+        live_tech_opts = {
+            "sh588380": "双创50ETF · 588380",
+            "sz159915": "创业板ETF · 159915",
+            "sh588000": "科创50ETF · 588000"
+        }
+        live_def_opts = {
+            "sh511010": "国债ETF · 511010",
+            "sh511260": "十年国债ETF · 511260",
+            "sh512890": "红利低波ETF · 512890"
+        }
+
+        def_tech_key = acc_obj.get("tech_symbol", "sh588380")
+        if def_tech_key not in live_tech_opts:
+            def_tech_key = "sh588380"
+        def_def_key = acc_obj.get("def_symbol", "sh511010")
+        if def_def_key not in live_def_opts:
+            def_def_key = "sh511010"
+
+        cur_tech = st.session_state.get("inplace_sel_tech", st.session_state.get(f"tech_choice_{sel_acc}", def_tech_key))
+        if cur_tech not in live_tech_opts:
+            cur_tech = def_tech_key
+        cur_def = st.session_state.get("inplace_sel_def", st.session_state.get(f"def_choice_{sel_acc}", def_def_key))
+        if cur_def not in live_def_opts:
+            cur_def = def_def_key
+        cur_window = int(acc_obj.get("lookback_window", 20))
+
         @st.cache_data(ttl=5, show_spinner=False)
         def _fetch_plan_cached(tech, defense, window, acc, seq):
             return generate_rebalance_plan(tech, defense, window, account_name=acc)
@@ -1100,318 +979,520 @@ if strategy_mode == "今日调仓":
         pos = plan["position"]
         init_capital = float(pos.get("initial_capital", 100000.0))
         total_return_pct = ((port["total_assets"] - init_capital) / init_capital) * 100
+        pnl_amount = port["total_assets"] - init_capital
+        hold_shares = pos.get('holding_amount', 0)
+        target_name = ETF_POOL.get(sig['target_symbol'], sig['target_symbol']).split()[0]
+        hold_name = port['current_holding_name'] if port['current_holding_name'] else "空仓"
 
-        # 自动调仓检测与撮合
-        if auto_trade_toggle:
-            exec_res = execute_simulated_rebalance(sel_acc, cur_tech, cur_def, cur_window)
-            if exec_res.get("executed"):
-                st.toast(f"自动调仓已执行: {exec_res['message']}", icon="🚀")
+    # 4. 第一层：账户资产概览 (4列统一卡片，严格对应 demo.html line 110-135)
+    ret_color_cls = "stat-pos" if total_return_pct > 0 else ("stat-neg" if total_return_pct < 0 else "")
+    ret_sign = "+" if total_return_pct > 0 else ""
+    pnl_sign = "+" if pnl_amount > 0 else ("-" if pnl_amount < 0 else "")
 
-        # 2. 浅底决策条 (Decision Banner)
-        action_text = plan['summary_action']
-        quote_time = sig['tech'].get('quote_time', now_dt.strftime('%H:%M:%S'))
-        st.markdown(
-            f"""
-            <section class="decision-banner" aria-label="今日决策">
-                <div class="decision-main">
-                    {status_tag_html}
-                    <h2>{action_text}</h2>
-                    <p>{plan['reason']}</p>
-                </div>
-                <div class="decision-time-box">
-                    <small>模拟调仓时间</small>
-                    <strong>14:45–14:55</strong>
-                    <p class="time-stamp">行情更新于 {quote_time}</p>
-                </div>
-            </section>
-            """,
-            unsafe_allow_html=True
-        )
+    if hold_shares == 0:
+        val_pos = "空仓"
+        val_pos_sub = "0%"
+    else:
+        if is_dividend_plan:
+            val_pos = f"红利低波 ({port['current_shares']:,}股)"
+            val_pos_sub = f"仓位 {port['current_weight']*100:.1f}%"
+        else:
+            val_pos = f"{hold_name}"
+            val_pos_sub = f"持仓 {hold_shares:,} 份 ({port['current_weight']*100:.1f}%)"
 
-        # 3. 紧凑账户概况条 (Account Strip)
-        ret_color_cls = "pos" if total_return_pct > 0 else ("neg" if total_return_pct < 0 else "")
-        ret_sign = "+" if total_return_pct > 0 else ""
-        holding_desc = port['current_holding_name'] if port['current_holding_name'] else "空仓"
+    st.markdown(f"""
+    <div class="overview-grid">
+        <div class="overview-cell">
+            <div class="overview-label">总资产</div>
+            <div class="overview-val">¥{port['total_assets']:,.2f}</div>
+        </div>
+        <div class="overview-cell">
+            <div class="overview-label">可用现金</div>
+            <div class="overview-val">¥{port['cash']:,.2f}</div>
+        </div>
+        <div class="overview-cell">
+            <div class="overview-label">当前持仓 / 仓位</div>
+            <div class="overview-val-box">
+                <span class="overview-val">{val_pos}</span>
+                <span class="overview-sub">{val_pos_sub}</span>
+            </div>
+        </div>
+        <div class="overview-cell">
+            <div class="overview-label">累计收益 / 浮动盈亏</div>
+            <div class="overview-val-box">
+                <span class="overview-val {ret_color_cls}">{ret_sign}{total_return_pct:.2f}%</span>
+                <span class="overview-sub {ret_color_cls}">{pnl_sign}¥{abs(pnl_amount):,.2f}</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        st.markdown(
-            f"""
-            <section class="account-strip" aria-label="账户概况">
-                <div class="account-cell">
-                    <div class="acc-label"><strong>{sel_acc}</strong></div>
-                    <div class="acc-tag" style="color:#606c78;">账户概况</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">总资产</div>
-                    <div class="acc-val">¥{port['total_assets']:,.2f}</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">可用现金</div>
-                    <div class="acc-val">¥{port['cash']:,.2f}</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">当前持仓</div>
-                    <div class="acc-val" style="font-size:16px;">{holding_desc}</div>
-                </div>
-                <div class="account-cell">
-                    <div class="acc-label">累计收益</div>
-                    <div class="acc-val {ret_color_cls}">{ret_sign}{total_return_pct:.2f}%</div>
-                </div>
-            </section>
-            """,
-            unsafe_allow_html=True
-        )
+    # 5. 第二层：左因 (7列) + 右果 (5列)
+    col_left, col_right = st.columns([7, 5], gap="large")
 
-        # 4. 双栏交易工作区 (Split Layout)
-        col_main, col_rail = st.columns([1.65, 1.0], gap="medium")
+    # ==========================================
+    # 左侧：行情与因子监控 (7列)
+    # ==========================================
+    with col_left:
+        st.markdown("""
+        <div class="wb-card">
+            <div class="card-header-bar">
+                <h2 class="card-title">📊 行情与因子监控</h2>
+                <span class="card-subtitle">支持就地切换标的，实时重算动量与估值</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-        # A. 左侧主区：调仓委托清单 + 尾盘执行按钮
-        with col_main:
-            real_trades = [o for o in orders if o.get("action") in ["买入", "卖出"]]
-
-            if real_trades:
-                order_rows_html = ""
-                for o in real_trades:
-                    action_cls = "pos" if o["action"] == "买入" else "neg"
-                    sym_upper = o["symbol"].upper()
-                    order_rows_html += f"<tr><td><b class='{action_cls}'>{o['action']}</b></td><td><b>{o['name']}</b><small>{sym_upper}</small></td><td class='n'>{o['shares']:,}</td><td class='n'>{o['price']:.3f}</td><td class='n'>{o['est_amount']:,.2f}</td></tr>"
-
-                render_html(
-                    f"""
-                    <div class="panel-box">
-                        <div class="panel-header">
-                            <h2>调仓清单</h2>
-                            <small>{len(real_trades)} 笔委托 · 模拟交易</small>
-                        </div>
-                        <div class="table-wrap">
-                            <table class="workbench-table">
-                                <thead>
-                                    <tr>
-                                        <th>方向</th>
-                                        <th>证券名称 / 代码</th>
-                                        <th class="n">数量（股）</th>
-                                        <th class="n">参考价</th>
-                                        <th class="n">预计金额</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {order_rows_html}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="order-summary-bar">
-                            <span>预计金额未含费用；以实际模拟撮合结果为准。</span>
-                            <span style="color:#856121; font-weight:600;">{'尾盘待执行' if in_exec_window else '待尾盘执行'}</span>
-                        </div>
-                    </div>
-                    """
-                )
-
-                # 紧贴表格底部的执行区域
-                if in_exec_window:
-                    exec_card_class = "active"
-                    exec_title = "当前处于尾盘决策窗口 (14:45–14:55)"
-                    exec_desc = "价格已进入终盘定型阶段，系统可执行确定性换仓！"
-                else:
-                    exec_card_class = "disabled"
-                    exec_title = "尚未进入执行时间"
-                    exec_desc = f"当前为盘中监控期 (现时间 {now_dt.strftime('%H:%M:%S')})，策略严格规定 14:45–14:55 方可执行调仓。"
-
-                c_info, c_btn = st.columns([2.5, 1.3])
-                with c_info:
-                    render_html(
-                        f"""
-                        <div class="exec-card {exec_card_class}" style="border: 1px solid var(--line); margin-top:-6px; border-radius:0;">
-                            <div>
-                                <strong>{exec_title}</strong>
-                                <p>{exec_desc}</p>
-                            </div>
-                        </div>
-                        """
-                    )
-                with c_btn:
-                    st.write("")
-                    btn_help = "已在 14:45~14:55 窗口内，点击立即模拟调仓" if in_exec_window else "当前未在 14:45~14:55 窗口内，按钮已禁用"
-                    if st.button("执行模拟调仓", type="primary" if in_exec_window else "secondary", disabled=not in_exec_window, help=btn_help, use_container_width=True, key="btn_exec_rot"):
-                        # 模拟卖出
-                        sells = [o for o in real_trades if o["action"] == "卖出"]
-                        for s in sells:
-                            record_trade_log(sel_acc, "卖出平仓", s["symbol"], s["shares"], s["price"], s["est_amount"], reason="尾盘动量切换平仓")
-                        # 模拟买入
-                        buys = [o for o in real_trades if o["action"] == "买入"]
-                        last_b = buys[-1] if buys else None
-                        if last_b:
-                            remain_cash = port['total_assets'] - last_b['est_amount']
-                            save_current_position({
-                                "initial_capital": init_capital,
-                                "holding_symbol": last_b["symbol"],
-                                "holding_amount": int(last_b["shares"]),
-                                "cash_available": max(0.0, round(remain_cash, 2)),
-                                "tech_symbol": cur_tech,
-                                "def_symbol": cur_def,
-                                "lookback_window": cur_window,
-                                "auto_trade": auto_trade_toggle
-                            }, account_name=sel_acc)
-                            record_trade_log(sel_acc, "买入建仓", last_b["symbol"], last_b["shares"], last_b["price"], last_b["est_amount"], reason="尾盘动量切换建仓")
-                            st.success(f"模拟调仓执行成功！已全额建仓持有：{last_b['name']} ({last_b['shares']:,} 股)！")
-                            st.rerun()
-
-            else:
-                hold_name = port['current_holding_name'] if port['current_holding_name'] else "空仓"
-                hold_shares = pos.get('holding_amount', 0)
-                hold_mv = port['market_value']
-                target_name = ETF_POOL.get(sig['target_symbol'], sig['target_symbol']).split()[0]
-                setup_o = plan.get("setup_order", {})
-
-                if hold_shares > 0:
-                    card_icon = "✅"
-                    card_title = f"持仓与目标一致 · 今日保持现有持仓"
-                    card_desc = f"当前持有 <b>{hold_name}</b> ({hold_shares:,} 股 / 市值 ¥{hold_mv:,.2f})，今日无新变盘信号，无需进行任何换仓操作。"
-                    exec_title = "保持现有持仓"
-                    exec_desc = "尾盘无需进行调仓下单，继续享受当前标的趋势收益。"
-                    btn_text = "无需调仓"
-                else:
-                    card_icon = "⚪"
-                    card_title = "保持空仓观望 · 今日无新变盘信号"
-                    card_desc = f"当前策略延续【{target_name}】防守周期，今日进攻与防守信号未发生切换。建议保持空仓观望，等待下一次变盘信号出现。"
-                    exec_title = "保持空仓观望"
-                    exec_desc = "今日未触发新变盘信号，保持空仓状态，无需调仓委托。"
-                    btn_text = "无需调仓 (保持空仓)"
-
-                render_html(
-                    f"""
-                    <div class="panel-box">
-                        <div class="panel-header">
-                            <h2>调仓清单</h2>
-                            <small>{'当前持仓与信号一致' if hold_shares > 0 else '空仓观望'} · 无需委托</small>
-                        </div>
-                        <div style="padding: 24px 20px; background: #ffffff;">
-                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                                <span style="font-size:20px;">{card_icon}</span>
-                                <div>
-                                    <b style="font-size:13px; color:#202b36;">{card_title}</b>
-                                    <p style="font-size:12px; color:#606c78; margin:2px 0 0 0;">
-                                        {card_desc}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="exec-card active" style="border-top:1px solid var(--line);">
-                            <div>
-                                <strong>{exec_title}</strong>
-                                <p>{exec_desc}</p>
-                            </div>
-                            <button class="stButton" disabled style="background:#eaf0f4; border:1px solid #d8dee4; border-radius:3px; padding:6px 12px; font-size:12px; color:#77808d; cursor:not-allowed;">{btn_text}</button>
-                        </div>
-                    </div>
-                    """
-                )
-
-                if hold_shares == 0 and setup_o.get("shares", 0) > 0:
-                    with st.expander("🛒 若需跟随策略开启底仓，点击可手动建仓", expanded=False):
-                        st.caption(f"当前策略目标为【{target_name}】。点击下方按钮可立即使用可用现金（¥{port['cash']:,.2f}）建立模拟底仓（约 {setup_o['shares']:,} 股，预估金额 ¥{setup_o['est_amount']:,.2f}）。")
-                        if st.button(f"手动建立底仓 · 买入【{target_name}】", type="secondary", use_container_width=True, key="btn_setup_rot"):
-                            remain_cash = port['total_assets'] - setup_o['est_amount']
-                            save_current_position({
-                                "initial_capital": init_capital,
-                                "holding_symbol": setup_o["symbol"],
-                                "holding_amount": int(setup_o["shares"]),
-                                "cash_available": max(0.0, round(remain_cash, 2)),
-                                "tech_symbol": cur_tech,
-                                "def_symbol": cur_def,
-                                "lookback_window": cur_window,
-                                "auto_trade": auto_trade_toggle
-                            }, account_name=sel_acc)
-                            record_trade_log(sel_acc, "手动建仓", setup_o["symbol"], setup_o["shares"], setup_o["price"], setup_o["est_amount"], reason="用户手动跟单建立初始底仓")
-                            st.success(f"已手动为【{sel_acc}】建立底仓：{target_name} ({setup_o['shares']:,} 股)！")
-                            st.rerun()
-
-            st.caption("此环境为模拟实盘撮合，在 14:45–14:55 时间窗内点击执行将记入账户流水。")
-
-            with st.expander("▶ 历史调仓记录", expanded=False):
-                acc_logs = get_trade_logs(account_name=sel_acc)
-                if acc_logs:
-                    st.dataframe(pd.DataFrame(acc_logs), use_container_width=True, hide_index=True)
-                else:
-                    render_html(
-                        """
-                        <div style="background:#fff; border:1px solid var(--line); padding:16px; font-size:12px;">
-                            <b>暂无调仓记录</b>
-                            <p style="color:#606c78; font-size:11px; margin-top:4px;">执行模拟调仓后，这里将显示时间、标的、数量、价格与成交金额流水。</p>
-                        </div>
-                        """
-                    )
-
-        # B. 右侧栏：行情与信号栏
-        with col_rail:
+        if not is_dividend_plan:
+            # 进攻标的 (就地切换)
+            tech_idx = list(live_tech_opts.keys()).index(cur_tech) if cur_tech in live_tech_opts else 0
             t_mom = sig['tech']['mom'] * 100
-            d_mom = sig['defensive']['mom'] * 100
-            t_cls = "pos" if t_mom >= 0 else "neg"
-            d_cls = "pos" if d_mom >= 0 else "neg"
+            t_cls = "stat-pos" if t_mom >= 0 else "stat-neg"
             t_sign = "+" if t_mom >= 0 else ""
+
+            col_t1, col_t2, col_t3 = st.columns([5.5, 3.2, 3.3])
+            with col_t1:
+                st.markdown(f"""
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                    <span class="target-badge-red">进攻标的</span>
+                    <span class="target-code">{cur_tech.upper()}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                new_tech = st.selectbox(
+                    "进攻标的",
+                    list(live_tech_opts.keys()),
+                    format_func=lambda x: live_tech_opts[x],
+                    index=tech_idx,
+                    label_visibility="collapsed",
+                    key="inplace_sel_tech"
+                )
+                if new_tech != cur_tech:
+                    st.session_state[f"tech_choice_{sel_acc}"] = new_tech
+                    acc_obj["tech_symbol"] = new_tech
+                    save_current_position(acc_obj, account_name=sel_acc)
+                    st.rerun()
+
+            with col_t2:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:6px;">
+                    <div style="font-size:11px; color:#94a3b8;">最新净值</div>
+                    <div style="font-size:18px; font-weight:700; color:#0f172a; margin-top:2px;">{sig['tech']['price']:.3f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_t3:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:6px;">
+                    <div style="font-size:11px; color:#94a3b8;">20日动量</div>
+                    <div class="{t_cls}" style="margin-top:2px;">{t_sign}{t_mom:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 防守标的 (就地切换)
+            def_idx = list(live_def_opts.keys()).index(cur_def) if cur_def in live_def_opts else 0
+            d_mom = sig['defensive']['mom'] * 100
+            d_cls = "stat-pos" if d_mom >= 0 else "stat-neg"
             d_sign = "+" if d_mom >= 0 else ""
 
+            col_d1, col_d2, col_d3 = st.columns([5.5, 3.2, 3.3])
+            with col_d1:
+                st.markdown(f"""
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px; margin-top:8px;">
+                    <span class="target-badge-blue">防守标的</span>
+                    <span class="target-code">{cur_def.upper()}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                new_def = st.selectbox(
+                    "防守标的",
+                    list(live_def_opts.keys()),
+                    format_func=lambda x: live_def_opts[x],
+                    index=def_idx,
+                    label_visibility="collapsed",
+                    key="inplace_sel_def"
+                )
+                if new_def != cur_def:
+                    st.session_state[f"def_choice_{sel_acc}"] = new_def
+                    acc_obj["def_symbol"] = new_def
+                    save_current_position(acc_obj, account_name=sel_acc)
+                    st.rerun()
+
+            with col_d2:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:14px;">
+                    <div style="font-size:11px; color:#94a3b8;">最新净值</div>
+                    <div style="font-size:18px; font-weight:700; color:#0f172a; margin-top:2px;">{sig['defensive']['price']:.3f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_d3:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:14px;">
+                    <div style="font-size:11px; color:#94a3b8;">20日动量</div>
+                    <div class="{d_cls}" style="margin-top:2px;">{d_sign}{d_mom:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 💡 本次因子判断与标尺可视化
             mom_diff = t_mom - d_mom
             ma_diff = ((sig['tech']['price'] - sig['tech']['ma']) / sig['tech']['ma']) * 100
             is_tech_target = (sig['target_symbol'].lower() == cur_tech.lower())
+            tech_name = live_tech_opts.get(cur_tech, cur_tech).split()[0]
+            def_name = live_def_opts.get(cur_def, cur_def).split()[0]
 
             if is_tech_target:
-                trigger_summary = f"进攻动量领先防守 <b>{mom_diff:+.2f}%</b>，站上均线 <b>{ma_diff:+.2f}%</b>，满足全部进攻条件。"
+                factor_desc = f"🔥 <strong>触发攻守转换！</strong> {tech_name} 20日动量反超{def_name} <strong>{mom_diff:+.2f}%</strong>，且放量站上20日均线（<strong>{ma_diff:+.2f}%</strong>），策略由【防守】切换为【进攻】。"
+                progress_pct = 100
+                progress_fill_class = "progress-fill-red"
+                progress_label = "已突破阈值！触发买入进攻信号"
             else:
-                trigger_summary = f"进攻动量较防守落后 <b>{abs(mom_diff):.2f}%</b>，距 20 日均线 <b>{ma_diff:+.2f}%</b>，当前保持防守配置。"
+                factor_desc = f"进攻动量较防守落后 <strong>{abs(mom_diff):.2f}%</strong>，且{tech_name}距 20 日均线 <strong>{ma_diff:+.2f}%</strong>，未达向上突破阈值，当前维持【{def_name}】防守配置。"
+                progress_fill_class = "progress-fill-blue"
+                dist_pct = abs(ma_diff) if ma_diff < 0 else 0
+                progress_label = f"当前位置（距触发进攻信号还差 +{dist_pct:.2f}%）"
+                progress_pct = max(10, min(85, int(50 + ma_diff * 2.5)))
 
-            render_html(
-                f"""
-                <aside class="market-rail-box" aria-label="信号与行情">
-                    <div class="rail-header">
-                        <h2>行情与信号</h2>
-                        <small>{cur_window} 日动量</small>
+            st.markdown(f"""
+            <div style="padding-top:14px; border-top:1px solid #f1f5f9; margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:13px; font-weight:700; color:#1e293b;">💡 本次因子判断</span>
+                    <span style="font-size:11px; color:#64748b;">动量差值：{mom_diff:+.2f}% | 距20日均线：{ma_diff:+.2f}%</span>
+                </div>
+                <div class="factor-box">
+                    {factor_desc}
+                </div>
+                <div style="margin-top:12px;">
+                    <div class="progress-labels">
+                        <span>🛡️ 深度防守区</span>
+                        <span style="font-weight:600; color:#334155;">{progress_label}</span>
+                        <span>⚔️ 触发进攻阈值 (站上20日线 & 动量领先)</span>
                     </div>
-                    <div class="quote-item">
-                        <div class="quote-top-line">
-                            <span>{live_tech_opts.get(cur_tech, cur_tech).split()[0]}</span>
-                            <small style="color:#606c78;">进攻 / {cur_tech.upper()}</small>
-                        </div>
-                        <div class="quote-bot-line">
-                            <strong>{sig['tech']['price']:.3f}</strong>
-                            <span class="{t_cls}" style="font-size:13px; font-weight:600;">{t_sign}{t_mom:.2f}%</span>
-                        </div>
+                    <div class="progress-track">
+                        <div class="progress-fill {progress_fill_class}" style="width:{progress_pct}%;"></div>
                     </div>
-                    <div class="quote-item">
-                        <div class="quote-top-line">
-                            <span>{live_def_opts.get(cur_def, cur_def).split()[0]}</span>
-                            <small style="color:#606c78;">防守 / {cur_def.upper()}</small>
-                        </div>
-                        <div class="quote-bot-line">
-                            <strong>{sig['defensive']['price']:.3f}</strong>
-                            <span class="{d_cls}" style="font-size:13px; font-weight:600;">{d_sign}{d_mom:.2f}%</span>
-                        </div>
-                    </div>
-                    <div style="padding-top:14px;">
-                        <h3 style="font-size:12px; font-weight:650; margin:0 0 4px 0; color:#202b36;">本次判断</h3>
-                        <p style="font-size:11px; color:#53616d; line-height:1.6; margin:0 0 8px 0;">{trigger_summary}</p>
-                    </div>
-                </aside>
-                """
-            )
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with st.expander("▶ 查看规则与数据质量", expanded=False):
-                st.markdown("##### 动量规则检测")
-                for k, v in sig["conditions"].items():
-                    icon = "🟢 通过" if v["passed"] else "🔴 未通过"
-                    st.markdown(f"- {icon}: {v['name']}")
+        else:
+            # 策略二：红利低波 ERP 监控
+            etf_sig = sig["etf"]
+            bond_sig = sig["bond"]
+            ind = sig["indicators"]
 
-                st.caption(f"""
-                **计算依据**:
-                - 进攻动量: `{t_sign}{t_mom:.2f}%`
-                - 防守动量: `{d_sign}{d_mom:.2f}%`
-                - 进攻20日均线: `¥{sig['tech']['ma']:.3f}`
-                """)
+            etf_cls = "stat-pos" if etf_sig["chg_pct"] >= 0 else "stat-neg"
+            bond_cls = "stat-pos" if bond_sig["chg_pct"] >= 0 else "stat-neg"
+            etf_sign = "+" if etf_sig["chg_pct"] >= 0 else ""
+            bond_sign = "+" if bond_sig["chg_pct"] >= 0 else ""
 
-                st.markdown("##### 行情数据质量")
-                t_age = sig['tech'].get('age_seconds', 0)
-                d_age = sig['defensive'].get('age_seconds', 0)
-                st.markdown(f"- 进攻行情时效: **{t_age} 秒前** ({'正常 🟢' if t_age < 60 else '延迟 ⚠️'})")
-                st.markdown(f"- 防守行情时效: **{d_age} 秒前** ({'正常 🟢' if d_age < 60 else '延迟 ⚠️'})")
+            # 标的1：华泰低波
+            col_e1, col_e2, col_e3 = st.columns([5.5, 3.2, 3.3])
+            with col_e1:
+                st.markdown("""
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                    <span class="target-badge-red">红利标的</span>
+                    <span class="target-code">SH512890</span>
+                </div>
+                <div style="font-size:13px; font-weight:600; color:#0f172a; padding:6px 0;">华泰柏瑞红利低波ETF · 512890</div>
+                """, unsafe_allow_html=True)
+            with col_e2:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:6px;">
+                    <div style="font-size:11px; color:#94a3b8;">最新净值</div>
+                    <div style="font-size:18px; font-weight:700; color:#0f172a; margin-top:2px;">{etf_sig['price']:.3f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_e3:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:6px;">
+                    <div style="font-size:11px; color:#94a3b8;">今日涨跌</div>
+                    <div class="{etf_cls}" style="margin-top:2px;">{etf_sign}{etf_sig['chg_pct']:.2f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 标的2：十年国债
+            col_b1, col_b2, col_b3 = st.columns([5.5, 3.2, 3.3])
+            with col_b1:
+                st.markdown("""
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px; margin-top:8px;">
+                    <span class="target-badge-blue">对冲避险</span>
+                    <span class="target-code">SH511260</span>
+                </div>
+                <div style="font-size:13px; font-weight:600; color:#0f172a; padding:6px 0;">十年国债ETF · 511260</div>
+                """, unsafe_allow_html=True)
+            with col_b2:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:14px;">
+                    <div style="font-size:11px; color:#94a3b8;">最新净值</div>
+                    <div style="font-size:18px; font-weight:700; color:#0f172a; margin-top:2px;">{bond_sig['price']:.3f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_b3:
+                st.markdown(f"""
+                <div style="text-align:right; padding-top:14px;">
+                    <div style="font-size:11px; color:#94a3b8;">国债收益率</div>
+                    <div style="font-size:17px; font-weight:700; color:#0f172a; margin-top:2px;">{ind['rate_10y']:.4f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 💡 本次因子判断 (股债利差 ERP)
+            erp_pct_val = ind['erp_pct'] * 100
+            if ind['erp_pct'] > 0.35:
+                factor_desc = f"🟢 <strong>股债利差极具性价比！</strong> 华泰低波 PE 为 <strong>{ind['pe']:.2f} 倍</strong>，股债利差 ERP 为 <strong>{ind['erp']:.2f}%</strong>（处于近一年 <strong>{erp_pct_val:.1f}%</strong> 历史高位分位），红利资产深度低估，策略建议维持 <strong>100%</strong> 满仓配置。"
+                progress_fill_class = "progress-fill-green"
+            elif ind['erp_pct'] <= 0.20:
+                factor_desc = f"🔥 <strong>股债利差进入极值过热区！</strong> 华泰低波 PE 为 <strong>{ind['pe']:.2f} 倍</strong>，股债利差 ERP 为 <strong>{ind['erp']:.2f}%</strong>（处于近一年 <strong>{erp_pct_val:.1f}%</strong> 极值低位分位），权益性价比偏低，策略建议高抛减仓至 <strong>50%</strong>。"
+                progress_fill_class = "progress-fill-red"
+            else:
+                factor_desc = f"⚖️ <strong>处于稳健观察带！</strong> 华泰低波 PE 为 <strong>{ind['pe']:.2f} 倍</strong>，股债利差 ERP 为 <strong>{ind['erp']:.2f}%</strong>（分位 <strong>{erp_pct_val:.1f}%</strong>），维持 <strong>75%</strong> 稳健底仓。"
+                progress_fill_class = "progress-fill-blue"
+
+            st.markdown(f"""
+            <div style="padding-top:14px; border-top:1px solid #f1f5f9; margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:13px; font-weight:700; color:#1e293b;">💡 本次因子判断</span>
+                    <span style="font-size:11px; color:#64748b;">ERP 利差：{ind['erp']:.2f}% | 250日分位：{erp_pct_val:.1f}%</span>
+                </div>
+                <div class="factor-box">
+                    {factor_desc}
+                </div>
+                <div style="margin-top:12px;">
+                    <div class="progress-labels">
+                        <span>🔥 20% 极值过热 (减仓至50%)</span>
+                        <span style="font-weight:600; color:#334155;">当前位置: {erp_pct_val:.1f}% 分位</span>
+                        <span>🟢 80% 极值低估 (加仓至100%)</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill {progress_fill_class}" style="width:{max(5, min(100, int(erp_pct_val)))}%;"></div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 右侧：今日调仓指令与尾盘执行 (5列，消除了原图上下重复的问题)
+    # ==========================================
+    with col_right:
+        st.markdown("""
+        <div class="wb-card">
+            <div class="card-header-bar">
+                <h2 class="card-title">⚡ 今日调仓指令</h2>
+                <span style="font-size:11px; font-weight:600; color:#b45309; background:#fffbeb; border:1px solid #fef3c7; padding:2px 8px; border-radius:4px;">
+                    🕒 模拟调仓窗 14:45 - 14:55
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+
+        real_trades = [o for o in orders if o.get("action") in ["买入", "卖出"]]
+
+        if real_trades:
+            # 状态 2: 触发新变盘信号
+            if is_dividend_plan:
+                sig_title = f"🚨 触发红利调仓信号：目标仓位调整至 {int(port['target_weight']*100)}%"
+                sig_desc = f"股债利差 ERP 触发阈值门禁，策略由上一周期目标调整至 {int(port['target_weight']*100)}%，请于 14:45-14:55 窗口内执行委托。"
+            else:
+                sig_title = f"🚨 触发新变盘信号：平仓防守 → 买入进攻" if is_tech_target else f"🚨 触发新变盘信号：平仓进攻 → 切换防守"
+                sig_desc = f"今日进攻标的动量转强并站稳均线，请于 14:45-14:55 调仓窗口内执行以下切换委托。" if is_tech_target else f"进攻标的动量跌破阈值，请于 14:45-14:55 调仓窗口内切换至防守资产避险。"
+
+            st.markdown(f"""
+            <div class="signal-box-trigger">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span class="dot-red-ping"></span>
+                    <strong style="font-size:13px; color:#991b1b;">{sig_title}</strong>
+                </div>
+                <p style="font-size:12px; color:#b91c1c; margin:0; line-height:1.5;">{sig_desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # 待执行清单列表
+            order_items_html = ""
+            for o in real_trades:
+                action_color = "#dc2626" if o["action"] == "买入" else "#059669"
+                sym_code = o["symbol"].upper()
+                if o["action"] == "卖出":
+                    order_items_html += f"""
+                    <div class="order-item-row">
+                        <span><b style="color:{action_color};">{o['action']}平仓</b> {o['name']} ({sym_code})</span>
+                        <span style="color:#64748b;">全仓卖出 · 预计释放 ¥{o['est_amount']:,.2f}</span>
+                    </div>
+                    """
+                else:
+                    order_items_html += f"""
+                    <div class="order-item-row">
+                        <span><b style="color:{action_color};">{o['action']}开仓</b> {o['name']} ({sym_code})</span>
+                        <span style="color:#64748b;">全仓买入 · 预计委托 {o['shares']:,} 份</span>
+                    </div>
+                    """
+
+            st.markdown(f"""
+            <div class="order-list-box">
+                <div style="font-size:12px; font-weight:700; color:#334155; margin-bottom:6px;">📋 待执行调仓清单：</div>
+                {order_items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button("⚡ 一键执行调仓委托 (14:45-14:55)", type="primary", use_container_width=True, key="btn_exec_real"):
+                if is_dividend_plan:
+                    res = execute_dividend_simulated_rebalance(sel_acc, force_auto=True)
+                else:
+                    sells = [o for o in real_trades if o["action"] == "卖出"]
+                    for s in sells:
+                        record_trade_log(sel_acc, "卖出平仓", s["symbol"], s["shares"], s["price"], s["est_amount"], reason="尾盘动量切换平仓")
+                    buys = [o for o in real_trades if o["action"] == "买入"]
+                    last_b = buys[-1] if buys else None
+                    if last_b:
+                        remain_cash = port['total_assets'] - last_b['est_amount']
+                        save_current_position({
+                            "initial_capital": init_capital,
+                            "holding_symbol": last_b["symbol"],
+                            "holding_amount": int(last_b["shares"]),
+                            "cash_available": max(0.0, round(remain_cash, 2)),
+                            "tech_symbol": cur_tech,
+                            "def_symbol": cur_def,
+                            "lookback_window": cur_window,
+                            "auto_trade": acc_obj.get("auto_trade", True)
+                        }, account_name=sel_acc)
+                        record_trade_log(sel_acc, "买入建仓", last_b["symbol"], last_b["shares"], last_b["price"], last_b["est_amount"], reason="尾盘动量切换建仓")
+                    res = {"success": True, "message": "模拟调仓撮合成功！"}
+
+                if res.get("success"):
+                    st.toast(res.get("message", "调仓执行成功！"), icon="✅")
+                    st.rerun()
+
+        elif hold_shares == 0:
+            # 状态 1: 空仓观望态
+            st.markdown(f"""
+            <div class="signal-box-empty">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span class="dot-green"></span>
+                    <strong style="font-size:13px; color:#065f46;">保持空仓观望 · 今日无新变盘信号</strong>
+                </div>
+                <p style="font-size:12px; color:#047857; margin:0; line-height:1.5;">
+                    当前策略延续【{target_name}】防守周期，今日进攻与防守信号未发生切换。建议保持空仓观望，等待下一次新变盘信号出现。
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            c_btn_main, c_btn_sub = st.columns([1.5, 1.2])
+            with c_btn_main:
+                st.button("无需调仓 (保持空仓)", disabled=True, use_container_width=True, key="btn_no_rebal")
+            with c_btn_sub:
+                if st.button("🛒 手动建立底仓", use_container_width=True, key="btn_toggle_manual"):
+                    st.session_state["show_manual_panel"] = not st.session_state.get("show_manual_panel", False)
+                    st.rerun()
+
+            if st.session_state.get("show_manual_panel", False):
+                st.markdown("""
+                <div class="manual-panel-box">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong style="font-size:12px; color:#1e293b;">🛒 手动开启底仓委托（跟随当前防守周期）</strong>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                c_m_tgt, c_m_ratio = st.columns(2)
+                with c_m_tgt:
+                    if is_dividend_plan:
+                        m_targets = {"sh512890": "🛡️ 华泰低波红利 · 512890 (当前推荐)"}
+                    else:
+                        m_targets = {
+                            cur_def: f"🛡️ {live_def_opts.get(cur_def, cur_def).split()[0]} (当前推荐)",
+                            cur_tech: f"⚔️ {live_tech_opts.get(cur_tech, cur_tech).split()[0]}"
+                        }
+                    sel_m_target = st.selectbox("建仓标的", list(m_targets.keys()), format_func=lambda x: m_targets[x], key="manual_tgt")
+                with c_m_ratio:
+                    ratio_opts = {"1.0": f"100% 全仓 (¥{port['cash']:,.0f})", "0.5": f"50% 半仓 (¥{port['cash']*0.5:,.0f})", "0.25": f"25% 底仓 (¥{port['cash']*0.25:,.0f})"}
+                    sel_ratio = st.selectbox("建仓比例", list(ratio_opts.keys()), format_func=lambda x: ratio_opts[x], key="manual_ratio")
+
+                c_submit_manual, c_close_manual = st.columns([3, 1])
+                with c_submit_manual:
+                    if st.button("确认提交手动建仓委托", type="primary", use_container_width=True, key="btn_confirm_manual"):
+                        target_ratio = float(sel_ratio)
+                        invest_amt = port['cash'] * target_ratio
+                        target_p = sig['defensive']['price'] if (not is_dividend_plan and sel_m_target == cur_def) else (sig['tech']['price'] if not is_dividend_plan else sig['etf']['price'])
+                        shs = int(invest_amt / target_p / 100) * 100
+                        actual_amt = shs * target_p
+                        remain_cash = port['total_assets'] - actual_amt
+
+                        if is_dividend_plan:
+                            save_current_position({
+                                "initial_capital": init_capital,
+                                "holding_symbol": "sh512890",
+                                "holding_amount": shs,
+                                "bond_symbol": "sh511260",
+                                "bond_amount": 0,
+                                "cash_available": max(0.0, round(remain_cash, 2)),
+                                "strategy_type": "dividend_erp",
+                                "auto_trade": acc_obj.get("auto_trade", True)
+                            }, account_name=sel_acc)
+                            record_trade_log(sel_acc, "手动建仓", "sh512890", shs, target_p, actual_amt, reason="用户手动建立红利底仓")
+                        else:
+                            save_current_position({
+                                "initial_capital": init_capital,
+                                "holding_symbol": sel_m_target,
+                                "holding_amount": shs,
+                                "cash_available": max(0.0, round(remain_cash, 2)),
+                                "tech_symbol": cur_tech,
+                                "def_symbol": cur_def,
+                                "lookback_window": cur_window,
+                                "auto_trade": acc_obj.get("auto_trade", True)
+                            }, account_name=sel_acc)
+                            record_trade_log(sel_acc, "手动建仓", sel_m_target, shs, target_p, actual_amt, reason="用户手动建立初始底仓")
+
+                        st.session_state["show_manual_panel"] = False
+                        st.toast(f"已成功建立底仓：{shs:,} 股！", icon="🛒")
+                        st.rerun()
+
+                with c_close_manual:
+                    if st.button("收起 ✕", use_container_width=True, key="btn_close_manual"):
+                        st.session_state["show_manual_panel"] = False
+                        st.rerun()
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        else:
+            # 状态 3: 持仓防守/进攻态 (持仓与目标一致)
+            is_defense_holding = (pos.get('holding_symbol') == cur_def if not is_dividend_plan else True)
+            if is_dividend_plan:
+                hold_title = "⭐ 继续持有稳健红利底仓 · 今日无需换仓"
+                hold_desc = f"当前账户已持有【华泰低波红利 · 512890】({hold_shares:,} 股 / 市值 ¥{port['market_value']:,.2f})，仓位比例吻合策略目标，今日无调仓动作。"
+            elif is_defense_holding:
+                hold_title = f"🛡️ 继续持有防守仓位 · 今日无需换仓"
+                hold_desc = f"当前账户已满仓持有【{hold_name}】({hold_shares:,} 份)，与策略防守信号完全一致，今日无调仓动作。"
+            else:
+                hold_title = f"⚔️ 继续持有进攻仓位 · 今日无需换仓"
+                hold_desc = f"当前账户已持有【{hold_name}】({hold_shares:,} 份)，与策略进攻信号完全一致，今日无调仓动作。"
+
+            st.markdown(f"""
+            <div class="signal-box-holding">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <span class="dot-blue"></span>
+                    <strong style="font-size:13px; color:#1e40af;">{hold_title}</strong>
+                </div>
+                <p style="font-size:12px; color:#1d4ed8; margin:0; line-height:1.5;">{hold_desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.button("持仓已对齐策略 (无需调仓)", disabled=True, use_container_width=True, key="btn_aligned_holding")
+
+        st.markdown("""
+        <p style="font-size:11px; color:#94a3b8; text-align:center; padding-top:6px; margin-bottom:12px;">
+            此环境为模拟实盘撮合，在交易日 14:45–14:55 时间窗内点击执行将记入账户流水。
+        </p>
+        """, unsafe_allow_html=True)
+
+        with st.expander("📜 查看账户历史调仓流水", expanded=False):
+            acc_logs = get_trade_logs(account_name=sel_acc)
+            if acc_logs:
+                st.dataframe(pd.DataFrame(acc_logs), use_container_width=True, hide_index=True)
+            else:
+                render_html(
+                    """
+                    <div style="background:#fff; border:1px solid var(--line); padding:16px; font-size:12px;">
+                        <b>暂无调仓记录</b>
+                        <p style="color:#606c78; font-size:11px; margin-top:4px;">执行模拟调仓后，这里将显示时间、标的、数量、价格与成交金额流水。</p>
+                    </div>
+                    """
+                )
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # 页脚
     render_html(
