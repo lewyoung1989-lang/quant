@@ -26,8 +26,8 @@ def timestamp():
 
 def defaults(strategy, legacy=False):
     if strategy == "dividend_erp":
-        return {"threshold_low": .20, "threshold_high": .35 if legacy else .80,
-                "weight_low": .50, "weight_mid": .75, "weight_high": 1.0}
+        return {"threshold_low": .20, "threshold_high": .35,
+                "weight_low": .50 if legacy else 0.0, "weight_mid": .75 if legacy else .50, "weight_high": 1.0}
     return {"tech_symbol": "sh588380", "def_symbol": "sh511010", "lookback_window": 20}
 
 

@@ -34,3 +34,4 @@ body.navigation-only .sidebar{justify-content:flex-start}
 .fee-settings{margin-bottom:24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;color:var(--muted);font-size:12px}
 .fee-settings summary{cursor:pointer;min-height:28px;display:list-item;line-height:28px}
 .fee-settings[open]>.field{margin-top:14px;color:var(--ink)}
+.execution-settings{margin-bottom:9px;background:#fff}

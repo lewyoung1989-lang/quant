@@ -1,0 +1,21 @@
+[
+  {
+    "account_id": "SIM-502563F627A3",
+    "name": "模拟实盘 3 号 (红利低波ERP择时高抛低吸)",
+    "before": {
+      "threshold_low": 0.2,
+      "threshold_high": 0.35,
+      "weight_low": 0.5,
+      "weight_mid": 0.75,
+      "weight_high": 1.0
+    },
+    "after": {
+      "threshold_low": 0.2,
+      "threshold_high": 0.35,
+      "weight_low": 0.0,
+      "weight_mid": 0.5,
+      "weight_high": 1.0
+    },
+    "positions_and_cash_preserved": true
+  }
+]

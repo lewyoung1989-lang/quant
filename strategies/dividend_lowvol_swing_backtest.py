@@ -117,8 +117,8 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 def run_simulation(
     data: pd.DataFrame, 
     warmup: int = 60,
-    w_overheat: float = 0.50,
-    w_neutral: float = 0.75,
+    w_overheat: float = 0.00,
+    w_neutral: float = 0.50,
     w_undervalue: float = 1.00,
     th_overheat: float = 0.20,
     th_neutral: float = 0.35,
@@ -126,11 +126,21 @@ def run_simulation(
 ):
     """
     运行策略回测撮合引擎
-    交易成本: 万1 佣金 (0.0001) + 万2 滑点 (0.0002) = 0.0003 双边换手成本 (支持自定义费率)
+    交易成本: 每笔买卖成交额收取万1佣金 + 万2滑点；股债两腿分别计费。
+    前日信号于次日收盘成交；起点持有现金，首次成交前无持仓收益。
     闲置资金: 配置十年期国债 ETF (511260)，实现真正的股债平衡与现金管理
     策略二 ERP: 支持自定义三档区域仓位与分位线阈值
     """
+    if not 0 <= th_overheat < th_neutral <= 1:
+        raise ValueError("ERP 分位阈值须满足 0 ≤ 过热线 < 低估线 ≤ 1")
+    if not all(0 <= w <= 1 for w in (w_overheat, w_neutral, w_undervalue)) or not 0 <= cost_rate < 1:
+        raise ValueError("仓位或交易费率超出范围")
     valid_df = data.iloc[warmup:].copy()
+    if len(valid_df) < 2:
+        raise ValueError("预热后至少需要两个交易日")
+    required = valid_df[["close", "bond_close", "csi300_close", "erp_pct", "ema30", "atr20", "bias20", "rsi14"]]
+    if not np.isfinite(required.to_numpy()).all() or (valid_df[["close", "bond_close", "csi300_close"]] <= 0).any().any():
+        raise ValueError("行情或指标缺失，无法进行可靠回测")
     etf_ret = valid_df["close"].pct_change().fillna(0.0)
     bond_ret = valid_df["bond_close"].pct_change().fillna(0.0)
     csi_ret = valid_df["csi300_close"].pct_change().fillna(0.0)
@@ -178,27 +188,53 @@ def run_simulation(
             w_bias.loc[dt] = w_bias.shift(1).loc[dt] if dt != valid_df.index[0] else 1.00
             
     def simulate_weights(weights_series):
-        nav = [1.0]
-        w_list = [weights_series.iloc[0]]
-        turnovers = [weights_series.iloc[0]]
-        
-        for i in range(1, len(valid_df)):
-            w = weights_series.iloc[i-1]  # T-1 日信号在 T 日开盘/收盘生效
-            turnover = abs(w - w_list[-1])
-            fee = turnover * cost_rate
-            r_bond = bond_ret.iloc[i]
-            r_etf = etf_ret.iloc[i]
-            r_port = w * r_etf + (1.0 - w) * r_bond - fee
-            nav.append(nav[-1] * (1.0 + r_port))
-            w_list.append(w)
-            turnovers.append(turnover)
-            
-        return pd.DataFrame({
-            "nav": nav,
-            "weight": w_list,
-            "turnover": turnovers
-        }, index=valid_df.index)
-        
+        # T-1 signal -> T close trade. Until that close, existing units earn returns.
+        # Fractional ETF units are used for research; both traded legs pay costs.
+        equity_units = bond_units = 0.0
+        cash = 1.0
+        last_target = 0.0
+        average_cost = 0.0
+        rows = []
+        for i, dt in enumerate(valid_df.index):
+            price = float(valid_df.loc[dt, "close"])
+            bond_price = float(valid_df.loc[dt, "bond_close"])
+            before = cash + equity_units * price + bond_units * bond_price
+            target = last_target if i == 0 else float(weights_series.iloc[i - 1])
+            signal_date = pd.NaT if i == 0 else valid_df.index[i - 1]
+            equity_delta = fee = turnover = 0.0
+            trade_return = np.nan
+            if i > 0 and (i == 1 or target != last_target):
+                old_equity = equity_units * price
+                old_bond = bond_units * bond_price
+                # Solve V_after + fee(V_after) = V_before for self-financing trades.
+                lo, hi = 0.0, before
+                for _ in range(60):
+                    after = (lo + hi) / 2
+                    gross = abs(target * after - old_equity) + abs((1-target) * after - old_bond)
+                    if after + gross * cost_rate > before:
+                        hi = after
+                    else:
+                        lo = after
+                after = (lo + hi) / 2
+                new_equity = target * after / price
+                new_bond = (1-target) * after / bond_price
+                equity_delta = new_equity - equity_units
+                gross = abs(equity_delta) * price + abs(new_bond-bond_units) * bond_price
+                fee = gross * cost_rate
+                turnover = gross / before
+                if equity_delta > 0:
+                    average_cost = (equity_units * average_cost + equity_delta * price * (1+cost_rate)) / new_equity
+                elif equity_delta < 0 and average_cost > 0:
+                    trade_return = price * (1-cost_rate) / average_cost - 1
+                equity_units, bond_units = new_equity, new_bond
+                cash = before - equity_units*price - bond_units*bond_price - fee
+                last_target = target
+            nav = cash + equity_units*price + bond_units*bond_price
+            rows.append(dict(nav=nav, weight=target, actual_weight=equity_units*price/nav,
+                             turnover=turnover, fee=fee, equity_delta=equity_delta,
+                             trade_return=trade_return, signal_date=signal_date))
+        return pd.DataFrame(rows, index=valid_df.index)
+
     res_s1 = simulate_weights(w_atr)
     res_s2 = simulate_weights(w_erp)
     res_s3 = simulate_weights(w_bias)
@@ -216,6 +252,13 @@ def run_simulation(
         "s3_weight": res_s3["weight"]
     }, index=valid_df.index)
     
+    for key, result in (("s1", res_s1), ("s2", res_s2), ("s3", res_s3)):
+        for column in ("actual_weight", "turnover", "fee", "equity_delta", "trade_return", "signal_date"):
+            report_df[f"{key}_{column}"] = result[column]
+    report_df["s2_signal_erp_pct"] = valid_df["erp_pct"].shift(1)
+    report_df["s2_threshold_overheat"] = th_overheat
+    report_df["s2_threshold_neutral"] = th_neutral
+
     # 计算各策略动态回撤
     for col in ["bench_nav", "csi300_nav", "s1_atr_nav", "s2_erp_nav", "s3_bias_nav"]:
         dd_col = f"dd_{col}"
@@ -239,6 +282,9 @@ def generate_trade_ledger(
     w_series = report_df[w_col]
     prices = report_df["close"]
     
+    ledger_columns = ["交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "pnl_raw", "持仓天数", "交割状态", "量化触发依据"]
+    if report_df.empty:
+        return pd.DataFrame(columns=ledger_columns), 0.0, 0, 0
     records = []
     prev_w = w_series.iloc[0]
     last_buy_price = prices.iloc[0]
@@ -254,7 +300,7 @@ def generate_trade_ledger(
         
         if cur_w != prev_w:
             diff = cur_w - prev_w
-            is_buy = diff > 0
+            is_buy = report_df.iloc[i].get(f"{strat_key}_equity_delta", diff) > 0
             action = "低吸加仓 🔼" if is_buy else "高抛减仓 🔻"
             
             pnl_val = None
@@ -264,32 +310,49 @@ def generate_trade_ledger(
             
             if not is_buy:
                 total_closed += 1
-                pnl_val = (p - last_buy_price) / (last_buy_price + 1e-9)
-                pnl_str = f"{pnl_val*100:+.2f}%"
-                if pnl_val > 0:
-                    win_count += 1
-                    status = "盈利 🟢"
+                pnl_val = report_df.iloc[i].get(f"{strat_key}_trade_return", np.nan)
+                if pd.isna(pnl_val):
+                    pnl_val = None
+                # Legacy reports have no reliable position cost basis.
+                if pnl_val is None:
+                    total_closed -= 1
+                    status = "成本依据缺失"
                 else:
-                    status = "亏损 🔴"
-                    
-            # 提取量化依据
-            reason = "调仓触发"
-            if raw_df is not None and dt in raw_df.index:
+                    pnl_str = f"{pnl_val*100:+.2f}%"
+                    if pnl_val > 0:
+                        win_count += 1
+                        status = "盈利 🟢"
+                    else:
+                        status = "亏损 🔴"
+
+            # Use the signal that actually drove the trade, never the execution day's indicator.
+            signal_dt = report_df.iloc[i].get(f"{strat_key}_signal_date", pd.NaT)
+            if pd.isna(signal_dt) and raw_df is not None:
+                previous = raw_df.index[raw_df.index < dt]
+                signal_dt = previous[-1] if len(previous) else pd.NaT
+            reason = "信号数据缺失，无法核实触发依据"
+            if raw_df is not None and signal_dt in raw_df.index:
+                signal = raw_df.loc[signal_dt]
                 if strat_key == "s2":
-                    pct = raw_df.loc[dt, "erp_pct"] * 100
-                    reason = f"ERP分位数={pct:.1f}% (<= {th_overheat*100:.0f}% 估值过热高抛)" if not is_buy else f"ERP分位数={pct:.1f}% (> {th_neutral*100:.0f}% 性价比良好低吸)"
+                    pct = report_df.iloc[i].get("s2_signal_erp_pct", signal["erp_pct"])
+                    low = report_df.iloc[i].get("s2_threshold_overheat", th_overheat)
+                    high = report_df.iloc[i].get("s2_threshold_neutral", th_neutral)
+                    if pct <= low:
+                        zone = f"≤ {low*100:g}%，高估区"
+                    elif pct <= high:
+                        zone = f"{low*100:g}% < 分位 ≤ {high*100:g}%，中性区"
+                    else:
+                        zone = f"> {high*100:g}%，低估区"
+                    reason = f"前一交易日 ERP={pct*100:.1f}%（{zone}），目标仓位 {cur_w*100:g}%"
                 elif strat_key == "s1":
-                    ema = raw_df.loc[dt, "ema30"]
-                    atr = raw_df.loc[dt, "atr20"]
-                    dev = (p - ema) / (atr + 1e-9)
-                    reason = f"突破中轴 {dev:+.1f} ATR 上轨 (高抛减仓)" if not is_buy else f"回落中轴修复 {dev:+.1f} ATR (低吸回补)"
+                    dev = (signal["close"] - signal["ema30"]) / (signal["atr20"] + 1e-9)
+                    reason = f"前一交易日偏离中轴 {dev:+.1f} ATR，目标仓位 {cur_w*100:g}%"
                 elif strat_key == "s3":
-                    bias = raw_df.loc[dt, "bias20"]
-                    rsi = raw_df.loc[dt, "rsi14"]
-                    reason = f"BIAS={bias:+.1f}%, RSI={rsi:.0f} (超买高抛)" if not is_buy else f"BIAS={bias:+.1f}%, RSI={rsi:.0f} (超跌低吸)"
-                    
+                    reason = f"前一交易日 BIAS={signal['bias20']:+.1f}%，RSI={signal['rsi14']:.0f}，目标仓位 {cur_w*100:g}%"
+
             records.append({
                 "交割日期": dt.strftime("%Y-%m-%d"),
+                "信号日期": signal_dt.strftime("%Y-%m-%d") if pd.notna(signal_dt) else "未知",
                 "标的代码": "512890.SH",
                 "标的名称": "华泰低波红利ETF",
                 "操作类型": action,
@@ -308,7 +371,7 @@ def generate_trade_ledger(
                 last_buy_date = dt
             prev_w = cur_w
             
-    ledger_df = pd.DataFrame(records)
+    ledger_df = pd.DataFrame(records, columns=ledger_columns)
     win_rate = (win_count / total_closed * 100) if total_closed > 0 else 0.0
     return ledger_df, win_rate, total_closed, win_count
 
@@ -418,8 +481,8 @@ def plot_interactive_curves(report_df: pd.DataFrame, save_path: str = "./reports
     safe_print(f"[✓] 交互式净值曲线图已生成并保存至: {save_path}")
 
 def run_dividend_backtest(
-    w_overheat: float = 0.50,
-    w_neutral: float = 0.75,
+    w_overheat: float = 0.00,
+    w_neutral: float = 0.50,
     w_undervalue: float = 1.00,
     th_overheat: float = 0.20,
     th_neutral: float = 0.35,

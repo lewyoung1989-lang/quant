@@ -58,13 +58,19 @@ def render_html(html_str: str):
 
 # Shared workspace shell: the approved navigation is reused by all research pages.
 from ui.research_workspace import render_research_shell
+from ui.research_preferences import ResearchPreferences, read as read_preference, write as write_preference
 
 if "simulation_route" in st.session_state:
     st.session_state["workspace_mode"] = st.session_state.pop("simulation_route")
-strategy_mode = st.session_state.get("workspace_mode", "模拟账户")
+    write_preference("workspace_mode", st.session_state["workspace_mode"])
+strategy_mode = st.session_state.get("workspace_mode", read_preference("workspace_mode", "模拟账户"))
+if strategy_mode not in {"模拟账户", "红利高抛低吸", "攻守轮动", "因子实验", "模型回测"}:
+    strategy_mode = "模拟账户"
+preferences = ResearchPreferences(strategy_mode)
 if strategy_mode != "模拟账户":
     render_research_shell(strategy_mode)
     research_heading = st.empty()
+    st.caption("参数自动保存到本地，刷新后恢复；各策略独立保存。")
 
 # 通用标的池映射字典
 universe_options = {
@@ -85,19 +91,19 @@ if strategy_mode == "模拟账户":
 elif strategy_mode == "红利高抛低吸":
     with st.expander("回测参数 · 标的、周期与交易设置", expanded=False):
         st.markdown("### 红利低波回测设置")
-        etf_choice = st.selectbox("核心底仓标的", ["sh512890 · 华泰柏瑞红利低波ETF"], index=0)
-        bond_choice = st.selectbox("防守生息资产", ["sh511260 · 十年期国债ETF", "现金管理 (年化1.8%)"], index=0)
-        default_focus = st.selectbox(
+        etf_choice = preferences.selectbox("核心底仓标的", ["sh512890 · 华泰柏瑞红利低波ETF"], index=0)
+        bond_choice = preferences.selectbox("防守生息资产", ["sh511260 · 十年期国债ETF", "现金管理 (年化1.8%)"], index=0)
+        default_focus = preferences.selectbox(
             "主显聚焦策略",
             ["全策略横向对比 (推荐)", "策略二：ERP 股债利差宏观择时", "策略一：动态 ATR 通道网格", "策略三：BIAS+RSI 动量极值波段"],
             index=0
         )
 
-        start_date = st.date_input("开始日期", pd.to_datetime("2019-04-19"))
-        end_date = st.date_input("结束日期", pd.to_datetime("2026-10-09"))
+        start_date = preferences.date_input("开始日期", pd.to_datetime("2019-04-19"))
+        end_date = preferences.date_input("结束日期", pd.to_datetime("2026-10-09"))
 
         st.markdown("### 策略二 ERP 三档区域仓位自定义")
-        w_undervalue = st.slider(
+        w_undervalue = preferences.slider(
             "极具性价比/低估区仓位",
             min_value=0,
             max_value=100,
@@ -106,33 +112,32 @@ elif strategy_mode == "红利高抛低吸":
             format="%d%%",
             help="当股债利差分位数高于低吸阈值时的红利持仓比例，默认 100% 满仓。"
         ) / 100.0
-        w_neutral = st.slider(
+        w_neutral = preferences.slider(
             "稳健观察带/中性仓位",
-            min_value=0,
-            max_value=100,
-            value=75,
-            step=5,
-            format="%d%%",
-            help="当股债利差处于常态观察带时的红利底仓比例，默认 75% 底仓。"
-        ) / 100.0
-        w_overheat = st.slider(
-            "极值过热区/高抛防守仓位",
             min_value=0,
             max_value=100,
             value=50,
             step=5,
             format="%d%%",
-            help="当股债利差跌破过热线时压降后的红利仓位，默认 50% 半仓。"
+            help="当股债利差处于常态观察带时的红利底仓比例，默认 50% 底仓。"
+        ) / 100.0
+        w_overheat = preferences.slider(
+            "极值过热区/高抛防守仓位",
+            min_value=0,
+            max_value=100,
+            value=0,
+            step=5,
+            format="%d%%",
+            help="当股债利差跌破过热线时压降后的红利仓位，默认 0%，退出红利仓位。"
         ) / 100.0
 
-        with st.expander("更多设置 · 费率与阈值微调"):
-            st.caption("分位线阈值自定义")
-            th_overheat = st.slider("过热高抛分位阈值", min_value=5, max_value=30, value=20, step=5, format="%d%%") / 100.0
-            th_neutral = st.slider("低吸满仓分位阈值", min_value=25, max_value=60, value=35, step=5, format="%d%%") / 100.0
-            st.caption("ETF 交易免征印花税")
-            fee_bp = st.number_input("双边交易佣金 (万分之)", value=1.0, step=0.5)
-            slip_bp = st.number_input("双边滑点损耗 (万分之)", value=2.0, step=0.5)
-            core_ratio = st.slider("核心底仓比例 (网格策略不动)", min_value=20, max_value=80, value=50, step=10, format="%d%%") / 100.0
+        st.markdown("### 分位阈值与底仓设置")
+        th_overheat = preferences.slider("过热高抛分位阈值", min_value=5, max_value=30, value=20, step=5, format="%d%%") / 100.0
+        th_neutral = preferences.slider("低吸满仓分位阈值", min_value=25, max_value=60, value=35, step=5, format="%d%%") / 100.0
+        core_ratio = preferences.slider("核心底仓比例 (网格策略不动)", min_value=20, max_value=80, value=50, step=10, format="%d%%") / 100.0
+        st.markdown("### 交易费用 · ETF 免印花税")
+        fee_bp = preferences.number_input("双边交易佣金 (万分之)", value=1.0, step=0.5)
+        slip_bp = preferences.number_input("双边滑点损耗 (万分之)", value=2.0, step=0.5)
 
         st.markdown(
             """
@@ -165,12 +170,12 @@ elif strategy_mode == "红利高抛低吸":
             run_div_btn = st.button("重新计算回测", type="primary", use_container_width=True)
 
     st.markdown(
-        """
+        f"""
         <div class="research-note-bar">
             <span>标的 <b>华泰柏瑞红利低波 ETF (512890)</b></span>
             <span>基准 <b>中证红利低波动指数 (H30269)</b></span>
             <span>对冲生息 <b>十年国债 ETF (511260)</b></span>
-            <span>费率 <b>双边万3 (免印花税)</b></span>
+            <span>费率 <b>每笔万{fee_bp + slip_bp:g} · 股债两腿分别计费</b></span>
         </div>
         """,
         unsafe_allow_html=True
@@ -200,7 +205,7 @@ elif strategy_mode == "红利高抛低吸":
             <div>
                 <strong style="color:#315bd6; font-size:13px;">ERP 策略观察 · 当前研究参数</strong>
                 <p style="margin:3px 0 0 0; font-size:12px; color:#475569;">
-                    最新 ERP 历史分位：<b>{last_erp_pct*100:.1f}%</b> · 今日建议仓位：<b>{rec_weight*100:.0f}%</b> ({rec_status})。前往<b>模拟账户</b>核对账户信号与调仓清单。
+                    {raw_data.index[-1]:%Y-%m-%d} ERP 历史分位：<b>{last_erp_pct*100:.1f}%</b> · 研究目标仓位：<b>{rec_weight*100:.0f}%</b> ({rec_status})。前往<b>模拟账户</b>核对账户信号与调仓清单。
                 </p>
             </div>
             <div style="text-align:right;">
@@ -236,15 +241,19 @@ elif strategy_mode == "红利高抛低吸":
 
     # 动态实时运行真实撮合模拟 (含用户自定义的三档区域仓位与阈值)
     from strategies.dividend_lowvol_swing_backtest import run_simulation
-    df_div = run_simulation(
-        raw_data,
-        w_overheat=w_overheat,
-        w_neutral=w_neutral,
-        w_undervalue=w_undervalue,
-        th_overheat=th_overheat,
-        th_neutral=th_neutral,
-        cost_rate=cost_rate
-    )
+    try:
+        df_div = run_simulation(
+            raw_data,
+            w_overheat=w_overheat,
+            w_neutral=w_neutral,
+            w_undervalue=w_undervalue,
+            th_overheat=th_overheat,
+            th_neutral=th_neutral,
+            cost_rate=cost_rate
+        )
+    except ValueError as exc:
+        st.error(f"无法计算回测：{exc}")
+        st.stop()
 
     # 按照所选日期切片并归一化净值
     sub_df = df_div.loc[(df_div.index >= pd.to_datetime(start_date)) & (df_div.index <= pd.to_datetime(end_date))].copy()
@@ -311,14 +320,13 @@ elif strategy_mode == "红利高抛低吸":
         # 五大专业标签页
         tab1, tab_trade, tab2, tab3, tab4 = st.tabs([
             "净值走势与买卖标记",
-            "逐笔做 T 交易记录 (券商交割单)",
+            "模拟调仓记录",
             "分年度收益归因与胜率",
             "核心量化指标监控 (ATR/ERP/BIAS)",
             "每日撮合与持仓流水"
         ])
 
-        from strategies.dividend_lowvol_swing_backtest import load_or_sync_data, compute_indicators
-        raw_data = compute_indicators(load_or_sync_data())
+        # All views use the same cached input snapshot as the simulation above.
 
         with tab1:
             fig = make_subplots(
@@ -329,7 +337,7 @@ elif strategy_mode == "红利高抛低吸":
                 subplot_titles=[
                     "红利低波高抛低吸策略 vs 华泰低波纯持有 vs 沪深300指数 (Cumulative NAV)",
                     "动态水下回撤对比曲线 (Drawdown %)",
-                    "策略持仓权重走势 (ETF Position Weight: 50%~100%)"
+                    "策略目标仓位与实际收盘仓位 (%)"
                 ]
             )
 
@@ -374,7 +382,7 @@ elif strategy_mode == "红利高抛低吸":
                 )
 
             # 策略高抛低吸买卖点精准标记
-            ledger_s2, _, _, _ = generate_trade_ledger(sub_df, raw_data, strat_key="s2")
+            ledger_s2, _, _, _ = generate_trade_ledger(sub_df, raw_data, strat_key="s2", th_overheat=th_overheat, th_neutral=th_neutral)
             if len(ledger_s2) > 0:
                 buys = ledger_s2[ledger_s2["操作类型"].str.contains("低吸")]
                 sells = ledger_s2[ledger_s2["操作类型"].str.contains("高抛")]
@@ -414,7 +422,10 @@ elif strategy_mode == "红利高抛低吸":
                 fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["dd_csi300_nav"] * 100, mode="lines", name="沪深300回撤", line=dict(color="#D97706", width=1.2), showlegend=False), row=2, col=1)
 
             # 仓位权重变化线
-            fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["s2_weight"] * 100, mode="lines", name="策略仓位 %", line=dict(color="#DC2626", width=1.5)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["s2_weight"] * 100, mode="lines", name="目标仓位 %", line=dict(color="#DC2626", width=1.5, shape="hv")), row=3, col=1)
+
+            fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["s2_actual_weight"] * 100, mode="lines", name="实际收盘仓位 %", line=dict(color="#64748B", width=1, dash="dot")), row=3, col=1)
+            st.caption("前日信号于次日收盘调仓；调仓前按原持仓计算涨跌。股债两腿按成交额计费，信号不变时持有原份额。区间收益为已有策略净值切片，不是区间首日重新建仓。")
 
             fig.update_layout(
                 template="plotly_white",
@@ -430,10 +441,10 @@ elif strategy_mode == "红利高抛低吸":
             st.plotly_chart(fig, use_container_width=True)
 
         with tab_trade:
-            st.markdown("#### 券商级逐笔做 T 交易交割账单 (Trade Action Ledger)")
+            st.markdown("#### 模拟调仓明细（收盘参考价）")
             c_sel1, c_sel2 = st.columns([2.5, 3.5])
             with c_sel1:
-                ledger_strat = st.selectbox(
+                ledger_strat = preferences.selectbox(
                     "查看策略交易对账单",
                     ["策略二：ERP 股债利差择时 (推荐)", "策略一：动态 ATR 网格高抛低吸", "策略三：BIAS+RSI 动量极值波段"],
                     index=0
@@ -453,26 +464,28 @@ elif strategy_mode == "红利高抛低吸":
                 th_neutral=th_neutral
             )
 
+            st.caption("前一交易日信号 → 当日收盘调仓。减仓收益按加权持仓成本计入买卖费用，不代表完整做 T 轮次或账户总收益。")
+
             # 4 大做 T 交易统计卡片
             k1, k2, k3, k4 = st.columns(4)
             with k1:
-                st.metric("做 T 胜率 (Win Rate)", f"{win_rate:.1f}%", f"{win_count} 胜 / {total_closed - win_count} 负")
+                st.metric("减仓盈利比例", f"{win_rate:.1f}%", f"{win_count} 胜 / {total_closed - win_count} 负")
             with k2:
-                st.metric("完成平仓轮数", f"{total_closed} 轮", f"总调仓 {len(ledger_df)} 次")
+                st.metric("减仓笔数", f"{total_closed} 笔", f"总调仓 {len(ledger_df)} 次")
             with k3:
                 pnl_numeric = ledger_df["pnl_raw"].dropna()
                 avg_pnl = pnl_numeric.mean() if len(pnl_numeric) > 0 else 0.0
-                st.metric("单笔平均做 T 收益", f"{avg_pnl*100:+.2f}%")
+                st.metric("减仓平均收益（含费）", f"{avg_pnl*100:+.2f}%")
             with k4:
                 high_sells = (ledger_df["操作类型"].str.contains("高抛")).sum()
                 low_buys = (ledger_df["操作类型"].str.contains("低吸")).sum()
                 st.metric("高抛 / 低吸次数", f"{high_sells} 抛 / {low_buys} 吸")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            show_cols = ["交割日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "持仓天数", "交割状态", "量化触发依据"]
-            st.dataframe(ledger_df[show_cols], use_container_width=True, hide_index=True)
+            show_cols = ["交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "持仓天数", "交割状态", "量化触发依据"]
+            st.dataframe(ledger_df[show_cols].rename(columns={"持仓天数": "距上次加仓（区间内）", "仓位调整": "目标仓位调整", "单笔盈亏": "减仓收益率（含费）"}), use_container_width=True, hide_index=True)
 
-            ledger_csv = ledger_df[show_cols].to_csv(index=False).encode("utf-8-sig")
+            ledger_csv = ledger_df[show_cols].rename(columns={"持仓天数": "距上次加仓（区间内）", "仓位调整": "目标仓位调整", "单笔盈亏": "减仓收益率（含费）"}).to_csv(index=False).encode("utf-8-sig")
             st.download_button(
                 f"导出【{ledger_strat.split('：')[0]}】逐笔交割账单 CSV",
                 data=ledger_csv,
@@ -484,10 +497,11 @@ elif strategy_mode == "红利高抛低吸":
             st.markdown("#### 2019 ~ 2026 分年度收益率归因对比")
             sub_df["year"] = sub_df.index.year
             yearly_rows = []
+            period_returns = sub_df[["bench_nav", "csi300_nav", "s2_erp_nav"]].pct_change().fillna(0)
             for y, grp in sub_df.groupby("year"):
-                b_r = grp["bench_nav"].iloc[-1] / grp["bench_nav"].iloc[0] - 1.0
-                csi_r = (grp["csi300_nav"].iloc[-1] / grp["csi300_nav"].iloc[0] - 1.0) if "csi300_nav" in grp.columns else 0.0
-                s2_r = grp["s2_erp_nav"].iloc[-1] / grp["s2_erp_nav"].iloc[0] - 1.0
+                b_r = (1 + period_returns.loc[grp.index, "bench_nav"]).prod() - 1.0
+                csi_r = ((1 + period_returns.loc[grp.index, "csi300_nav"]).prod() - 1.0) if "csi300_nav" in grp.columns else 0.0
+                s2_r = (1 + period_returns.loc[grp.index, "s2_erp_nav"]).prod() - 1.0
                 alpha_b = s2_r - b_r
                 alpha_csi = s2_r - csi_r
 
@@ -536,8 +550,8 @@ elif strategy_mode == "红利高抛低吸":
 
             # ERP 分位数
             fig_ind.add_trace(go.Scatter(x=raw_sub.index, y=raw_sub["erp_pct"] * 100, mode="lines", name="ERP 历史分位数 %", line=dict(color="#8B5CF6", width=1.5)), row=2, col=1)
-            fig_ind.add_hline(y=80, line_dash="dash", line_color="#10B981", annotation_text="80% 极具性价比 (低吸满仓)", row=2, col=1)
-            fig_ind.add_hline(y=20, line_dash="dash", line_color="#EF4444", annotation_text="20% 估值过热 (高抛减半)", row=2, col=1)
+            fig_ind.add_hline(y=th_neutral*100, line_dash="dash", line_color="#10B981", annotation_text=f"{th_neutral*100:g}% 低估线 · 目标 {w_undervalue*100:g}%", row=2, col=1)
+            fig_ind.add_hline(y=th_overheat*100, line_dash="dash", line_color="#EF4444", annotation_text=f"{th_overheat*100:g}% 过热线 · 目标 {w_overheat*100:g}%", row=2, col=1)
 
             fig_ind.update_layout(template="plotly_white", height=600, hovermode="x unified", margin=dict(l=30, r=30, t=50, b=30))
             st.plotly_chart(fig_ind, use_container_width=True)
@@ -567,9 +581,9 @@ elif strategy_mode == "攻守轮动":
 
     with st.expander("回测参数 · 标的、周期与交易设置", expanded=False):
         st.markdown("### 回测设置")
-        selected_tech = st.selectbox("进攻标的", list(tech_options.keys()), format_func=lambda x: tech_options[x], index=0)
-        selected_bond = st.selectbox("防守标的", list(bond_options.keys()), format_func=lambda x: bond_options[x], index=0)
-        lookback_window = st.slider("动量周期", min_value=5, max_value=60, value=20, step=5)
+        selected_tech = preferences.selectbox("进攻标的", list(tech_options.keys()), format_func=lambda x: tech_options[x], index=0)
+        selected_bond = preferences.selectbox("防守标的", list(bond_options.keys()), format_func=lambda x: bond_options[x], index=0)
+        lookback_window = preferences.slider("动量周期", min_value=5, max_value=60, value=20, step=5)
 
         if selected_tech == "sz159915" and selected_bond in ["sh511010", "sh510880"]:
             default_start_val = pd.to_datetime("2013-08-01")
@@ -578,13 +592,13 @@ elif strategy_mode == "攻守轮动":
         else:
             default_start_val = pd.to_datetime("2022-08-01")
 
-        start_date = st.date_input("开始日期", default_start_val)
-        end_date = st.date_input("结束日期", pd.to_datetime("2026-10-09"))
+        start_date = preferences.date_input("开始日期", default_start_val)
+        end_date = preferences.date_input("结束日期", pd.to_datetime("2026-10-09"))
 
         with st.expander("更多设置 · 费率与基准"):
-            benchmark = st.text_input("基准标的", "SH000300")
-            open_cost_bp = st.number_input("买入佣金 (万分之)", value=1.0, step=0.5)
-            close_cost_bp = st.number_input("卖出费率 (万分之)", value=1.0, step=0.5)
+            benchmark = preferences.text_input("基准标的", "SH000300")
+            open_cost_bp = preferences.number_input("买入佣金 (万分之)", value=1.0, step=0.5)
+            close_cost_bp = preferences.number_input("卖出费率 (万分之)", value=1.0, step=0.5)
 
         st.markdown(
             """
@@ -672,32 +686,32 @@ elif strategy_mode == "攻守轮动":
 elif strategy_mode == "因子实验":
     with st.expander("回测参数 · 标的、周期与交易设置", expanded=False):
         st.markdown("### 选股规则")
-        market_display = st.selectbox("标的池", list(universe_options.values()), index=2)
+        market_display = preferences.selectbox("标的池", list(universe_options.values()), index=2)
         market = [k for k, v in universe_options.items() if v == market_display][0]
 
-        preset_choice = st.selectbox("因子预设", ["[自定义表达式]"] + list(CUSTOM_FACTORS.keys()), index=0)
+        preset_choice = preferences.selectbox("因子预设", ["[自定义表达式]"] + list(CUSTOM_FACTORS.keys()), index=0)
         if preset_choice == "[自定义表达式]":
-            factor_expr = st.text_area("因子表达式", value="($close - Ref($close, 20)) / Ref($close, 20)", height=80)
+            factor_expr = preferences.text_area("因子表达式", value="($close - Ref($close, 20)) / Ref($close, 20)", height=80)
         else:
             factor_expr = CUSTOM_FACTORS[preset_choice]
             st.code(factor_expr, language="python")
 
-        direction = st.radio("选股方向", ["因子值最大优先", "因子值最小优先"])
+        direction = preferences.radio("选股方向", ["因子值最大优先", "因子值最小优先"])
         ascending = True if "最小" in direction else False
 
         if market == "etf":
-            top_k = st.slider("持仓数量 Top-K", min_value=1, max_value=5, value=2, step=1)
+            top_k = preferences.slider("持仓数量 Top-K", min_value=1, max_value=5, value=2, step=1)
             def_start = pd.to_datetime("2022-01-01")
         else:
-            top_k = st.slider("持仓数量 Top-K", min_value=5, max_value=50, value=20, step=5)
+            top_k = preferences.slider("持仓数量 Top-K", min_value=5, max_value=50, value=20, step=5)
             def_start = pd.to_datetime("2020-07-01")
 
-        date_range = st.date_input("回测时间区间", [def_start, pd.to_datetime("2026-10-09")])
+        date_range = preferences.date_input("回测时间区间", [def_start, pd.to_datetime("2026-10-09")])
 
         with st.expander("更多设置 · 费率与基准"):
-            benchmark = st.text_input("基准标的", "SH000300")
-            open_cost_bp = st.number_input("买入佣金 (万分之)", value=1.0 if market == "etf" else 2.5, step=0.5)
-            close_cost_bp = st.number_input("卖出费率 (万分之)", value=1.0 if market == "etf" else 7.5, step=0.5)
+            benchmark = preferences.text_input("基准标的", "SH000300")
+            open_cost_bp = preferences.number_input("买入佣金 (万分之)", value=1.0 if market == "etf" else 2.5, step=0.5)
+            close_cost_bp = preferences.number_input("卖出费率 (万分之)", value=1.0 if market == "etf" else 7.5, step=0.5)
 
         st.markdown(
             """
@@ -784,19 +798,19 @@ elif strategy_mode == "因子实验":
 elif strategy_mode == "模型回测":
     with st.expander("回测参数 · 标的、周期与交易设置", expanded=False):
         st.markdown("### 训练与组合设置")
-        market_display = st.selectbox("标的池", ["沪深300股票池", "中证500股票池"], index=0)
+        market_display = preferences.selectbox("标的池", ["沪深300股票池", "中证500股票池"], index=0)
         market = "csi300" if "300" in market_display else "csi500"
 
-        train_range = st.date_input("训练周期", [pd.to_datetime("2017-01-01"), pd.to_datetime("2019-12-31")])
-        test_range = st.date_input("回测周期", [pd.to_datetime("2020-07-01"), pd.to_datetime("2020-12-31")])
+        train_range = preferences.date_input("训练周期", [pd.to_datetime("2017-01-01"), pd.to_datetime("2019-12-31")])
+        test_range = preferences.date_input("回测周期", [pd.to_datetime("2020-07-01"), pd.to_datetime("2020-12-31")])
 
-        top_k = st.slider("持仓数量 Top-K", min_value=5, max_value=50, value=30, step=5)
-        n_drop = st.slider("调仓淘汰数 N-Drop", min_value=1, max_value=20, value=5, step=1)
+        top_k = preferences.slider("持仓数量 Top-K", min_value=5, max_value=50, value=30, step=5)
+        n_drop = preferences.slider("调仓淘汰数 N-Drop", min_value=1, max_value=20, value=5, step=1)
 
         with st.expander("更多设置 · 费率与基准"):
-            benchmark = st.text_input("基准标的", "SH000300")
-            open_cost_bp = st.number_input("买入佣金 (万分之)", value=2.5, step=0.5)
-            close_cost_bp = st.number_input("卖出费率 (万分之)", value=7.5, step=0.5)
+            benchmark = preferences.text_input("基准标的", "SH000300")
+            open_cost_bp = preferences.number_input("买入佣金 (万分之)", value=2.5, step=0.5)
+            close_cost_bp = preferences.number_input("卖出费率 (万分之)", value=7.5, step=0.5)
 
         st.markdown(
             """
