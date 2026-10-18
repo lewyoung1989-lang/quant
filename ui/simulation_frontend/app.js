@@ -44,7 +44,7 @@ function renderAccounts(){
   }).join(''):`<div class="list-empty">没有找到“${esc($('#account-search').value)}”。试试其他账户名称或策略名称。</div>`;
 }
 
-function render(){const filter=$('#trade-filter')?.value;renderAccounts();renderWorkspace();if(filter&&$('#trade-filter')){$('#trade-filter').value=filter;$('#trade-table').innerHTML=tradeTable(current(),filter);}mountIcons();$('#worker-state').textContent=worker.alive?'尾盘自动检查运行中':'手动模拟环境';}
+function render(){const filter=$('#trade-filter')?.value;renderAccounts();renderWorkspace();if(filter&&$('#trade-filter')){$('#trade-filter').value=filter;$('#trade-table').innerHTML=tradeTable(current(),filter);}mountIcons();$('#worker-state').textContent=(worker.pipeline?.status||'后台任务未启动')+' · 查看任务状态';}
 function renderWorkspace(){
   const a=current();
  if(!a){$('#workspace').innerHTML=empty('还没有模拟账户','点击右上角「新增模拟账户」，选择策略和初始资金即可开始。','wallet');return;}
@@ -159,6 +159,10 @@ document.addEventListener('click',async e=>{
     case 'funds':fundsForm();break;
     case 'close':closeDrawer();break;
     case 'help':help();break;
+    case 'tasks':{
+      const job=worker.pipeline||{};
+      openDrawer('数据与后台任务','开机补齐数据；信号预生成，执行前按实时行情复核。',`<div class="form-content"><p class="notice">${esc(job.message||'请双击启动量化研究台脚本，启动后台任务。')}</p><p>检查时间：${esc(job.heartbeat||'尚未检查')}</p><p>尾盘自动进程：${worker.alive?'运行中':'未运行'}</p>${Object.entries(job.jobs||{}).map(([name,v])=>`<div class="library-item"><h3>${esc(name)}</h3><p>${esc(v.status)} · 数据截至 ${esc(v.asof||'未知')}</p>${v.error?`<p>${esc(v.error)}</p>`:''}</div>`).join('')}<h3>账户信号</h3>${Object.entries(job.signals||{}).map(([id,v])=>`<p>${esc(id)} · ${esc(v.status)} · ${esc(v.generated_at)}${v.error?' · '+esc(v.error):''}</p>`).join('')}<p class="settings-note">预生成信号是盘中参考，不是成交承诺。休市、数据未齐或错过尾盘窗口不执行；手动账户仍需确认。</p></div>`,'tasks');break;
+    }
     case 'refresh':send('refresh');break;
     case 'execute':{const a=current();if(a.plan.canExecute)send('execute',{accountId:a.id,planId:a.plan.id});break;}
     case 'export-trades':exportTrades();break;

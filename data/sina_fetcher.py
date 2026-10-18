@@ -7,6 +7,9 @@
 
 import os
 import time
+import datetime
+from zoneinfo import ZoneInfo
+import json
 import requests
 import pandas as pd
 from pathlib import Path
@@ -14,7 +17,7 @@ from pathlib import Path
 CACHE_DIR = Path("./data/sina_cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-def fetch_tencent_stock_kline(symbol="sz159915", start_date="2011-01-01", end_date="2026-10-10"):
+def fetch_tencent_stock_kline(symbol="sz159915", start_date="2011-01-01", end_date=None):
     """
     通过腾讯财经接口分页获取完整超长历史 K 线 (支持从 2011 年甚至更早至最新)
     """
@@ -24,7 +27,7 @@ def fetch_tencent_stock_kline(symbol="sz159915", start_date="2011-01-01", end_da
     headers = {"User-Agent": "Mozilla/5.0"}
     
     all_klines = []
-    curr_end = end_date
+    curr_end = end_date or datetime.datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
     
     for _ in range(15): # 最多向前翻页 15 次，足够覆盖 15 年以上
         url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,{start_date},{curr_end},640,qfq"
@@ -79,6 +82,18 @@ def fetch_sina_stock_kline(symbol="sh600519", datalen=1024, start_date=None):
 
     cache_file = CACHE_DIR / f"{code}.csv"
     
+    # Scheduler-managed full snapshots are replaced atomically. Freshness is
+    # checked by the execution service, not disguised by a new fetch timestamp.
+    marker = cache_file.with_suffix('.ready.json')
+    if cache_file.exists() and marker.exists():
+        df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+        try:
+            published = json.loads(marker.read_text())
+            if len(df) >= min(datalen, 260) and df.index[-1].date().isoformat() == published['asof']:
+                return df
+        except (ValueError, KeyError):
+            pass
+
     # 检查本地缓存
     if cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < 3600 * 24:
         df = pd.read_csv(cache_file, index_col="datetime", parse_dates=True)

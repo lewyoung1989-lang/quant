@@ -72,7 +72,7 @@ def snapshot(store, selected=None):
     market.update(full=f"{now():%Y-%m-%d} · {market['label']}", time=f'{now():%H:%M:%S}')
     return clean(dict(accounts=rows, selected=selected or (rows[0]['id'] if rows else None),
                       assets={s: {'name': ASSETS.get(s, s), 'price': quotes.get(s, {}).get('price')} for s in set(ASSETS)|set(symbols)},
-                      market=market, worker={'alive': worker_alive(store)}))
+                      market=market, worker={'alive': worker_alive(store), 'pipeline': store.metadata('pipeline') or {}}))
 
 
 def dispatch(store, action):

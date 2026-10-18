@@ -204,6 +204,9 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
     reasons = ([] if a["running"] else ["账户已暂停运行。"])
     if not status["ready"]:
         reasons.append(status["reason"])
+    pipeline = store.metadata("pipeline")
+    if pipeline and (not pipeline.get("ready") or pipeline.get("target") != previous_session(at.date())):
+        reasons.append("每日数据任务尚未补齐前一交易日数据，等待更新后再执行。")
     reasons.extend(quote_issues(quotes, symbols, at))
     reasons.extend(f"未配置 {s} 的交易规则，不能执行该持仓。" for s in symbols if s not in ASSETS)
     port = portfolio(a, quotes)

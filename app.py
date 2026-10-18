@@ -92,7 +92,9 @@ elif strategy_mode == "红利高抛低吸":
     with st.expander("回测参数 · 标的、周期与交易设置", expanded=False):
         st.markdown("### 红利低波回测设置")
         etf_choice = preferences.selectbox("核心底仓标的", ["sh512890 · 华泰柏瑞红利低波ETF"], index=0)
-        bond_choice = preferences.selectbox("防守生息资产", ["sh511260 · 十年期国债ETF", "现金管理 (年化1.8%)"], index=0)
+        defense_choice = preferences.selectbox("防守资产", ["现金（不计息）", "国债 ETF（511260）"], index=0)
+        defensive_asset = "bond" if defense_choice == "国债 ETF（511260）" else "cash"
+        defense_fee_note = "股债两腿分别计费" if defensive_asset == "bond" else "仅红利 ETF 买卖计费，现金不计息"
         default_focus = preferences.selectbox(
             "主显聚焦策略",
             ["全策略横向对比 (推荐)", "策略二：ERP 股债利差宏观择时", "策略一：动态 ATR 通道网格", "策略三：BIAS+RSI 动量极值波段"],
@@ -135,6 +137,18 @@ elif strategy_mode == "红利高抛低吸":
         th_overheat = preferences.slider("过热高抛分位阈值", min_value=5, max_value=30, value=20, step=5, format="%d%%") / 100.0
         th_neutral = preferences.slider("低吸满仓分位阈值", min_value=25, max_value=60, value=35, step=5, format="%d%%") / 100.0
         core_ratio = preferences.slider("核心底仓比例 (网格策略不动)", min_value=20, max_value=80, value=50, step=10, format="%d%%") / 100.0
+        st.markdown("### 成交时点")
+        execution_choice = preferences.selectbox(
+            "回测成交时点", ["当日收盘成交（理想化对照）", "次日开盘成交"], index=0,
+            help="次日模式使用前日信号；当日模式使用当天最终收盘信号及收盘价，含前视偏差，仅供对照。"
+        )
+        execution_price = "same_close" if execution_choice == "当日收盘成交（理想化对照）" else "open"
+        execution_label = "开盘" if execution_price == "open" else "收盘"
+        signal_label = "当日最终收盘信号" if execution_price == "same_close" else "前一交易日信号"
+        timing_note = f"{signal_label} → {'当日' if execution_price == 'same_close' else '下一交易日'}{execution_label}成交"
+        st.caption(timing_note + "。此设置仅影响研究回测。")
+        if execution_price == "same_close":
+            st.warning("理想化对照：用当天最终收盘信号按当天收盘价成交，含前视偏差，无法保证在集合竞价下单时实现。收益不可视为可执行策略表现。")
         st.markdown("### 交易费用 · ETF 免印花税")
         fee_bp = preferences.number_input("双边交易佣金 (万分之)", value=1.0, step=0.5)
         slip_bp = preferences.number_input("双边滑点损耗 (万分之)", value=2.0, step=0.5)
@@ -174,20 +188,22 @@ elif strategy_mode == "红利高抛低吸":
         <div class="research-note-bar">
             <span>标的 <b>华泰柏瑞红利低波 ETF (512890)</b></span>
             <span>基准 <b>中证红利低波动指数 (H30269)</b></span>
-            <span>对冲生息 <b>十年国债 ETF (511260)</b></span>
-            <span>费率 <b>每笔万{fee_bp + slip_bp:g} · 股债两腿分别计费</b></span>
+            <span>防守资产 <b>{defense_choice}</b></span>
+            <span>费率 <b>每笔万{fee_bp + slip_bp:g} · {defense_fee_note}</b></span>
         </div>
         """,
         unsafe_allow_html=True
     )
 
     @st.cache_data(show_spinner=False)
-    def _get_cached_raw_dividend_data():
+    def _get_cached_raw_dividend_data(snapshot_version, defensive_asset):
         from strategies.dividend_lowvol_swing_backtest import load_or_sync_data, compute_indicators
-        df = load_or_sync_data()
+        df = load_or_sync_data(defensive_asset=defensive_asset)
         return compute_indicators(df)
 
-    raw_data = _get_cached_raw_dividend_data()
+    snapshot_paths = [Path("data") / name for name in ("sh512890_kline.csv", "h30269_index_hist.csv", "bond_rates_hist.csv", "sina_cache/sh000300.csv", "sina_cache/sh511260.csv")]
+    snapshot_version = tuple(p.stat().st_mtime_ns if p.exists() else 0 for p in snapshot_paths)
+    raw_data = _get_cached_raw_dividend_data(("defense-v2", snapshot_version), defensive_asset)
     last_erp_pct = raw_data["erp_pct"].iloc[-1]
     if last_erp_pct <= th_overheat:
         rec_weight = w_overheat
@@ -232,12 +248,16 @@ elif strategy_mode == "红利高抛低吸":
                         w_undervalue=w_undervalue,
                         th_overheat=th_overheat,
                         th_neutral=th_neutral,
-                        cost_rate=cost_rate
+                        cost_rate=cost_rate,
+            execution_price=execution_price,
+            defensive_asset=defensive_asset
                     )
                 st.toast("红利高抛低吸全周期回测已完成并导出！", icon="✅")
                 st.rerun()
             except Exception as e:
                 st.error(f"回测执行异常: {e}")
+
+    st.caption("本次回测：" + timing_note + (" · 理想化对照，含前视偏差" if execution_price == "same_close" else ""))
 
     # 动态实时运行真实撮合模拟 (含用户自定义的三档区域仓位与阈值)
     from strategies.dividend_lowvol_swing_backtest import run_simulation
@@ -249,7 +269,9 @@ elif strategy_mode == "红利高抛低吸":
             w_undervalue=w_undervalue,
             th_overheat=th_overheat,
             th_neutral=th_neutral,
-            cost_rate=cost_rate
+            cost_rate=cost_rate,
+            execution_price=execution_price,
+            defensive_asset=defensive_asset
         )
     except ValueError as exc:
         st.error(f"无法计算回测：{exc}")
@@ -425,7 +447,7 @@ elif strategy_mode == "红利高抛低吸":
             fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["s2_weight"] * 100, mode="lines", name="目标仓位 %", line=dict(color="#DC2626", width=1.5, shape="hv")), row=3, col=1)
 
             fig.add_trace(go.Scatter(x=sub_df.index, y=sub_df["s2_actual_weight"] * 100, mode="lines", name="实际收盘仓位 %", line=dict(color="#64748B", width=1, dash="dot")), row=3, col=1)
-            st.caption("前日信号于次日收盘调仓；调仓前按原持仓计算涨跌。股债两腿按成交额计费，信号不变时持有原份额。区间收益为已有策略净值切片，不是区间首日重新建仓。")
+            st.caption(f"{timing_note}；调仓前按原持仓计算涨跌。{defense_fee_note}，信号不变时持有原份额。区间收益为已有策略净值切片，不是区间首日重新建仓。")
 
             fig.update_layout(
                 template="plotly_white",
@@ -441,7 +463,8 @@ elif strategy_mode == "红利高抛低吸":
             st.plotly_chart(fig, use_container_width=True)
 
         with tab_trade:
-            st.markdown("#### 模拟调仓明细（收盘参考价）")
+            st.markdown(f"#### 模拟调仓明细（{execution_label}参考价）")
+            st.caption("成交模式：" + execution_choice)
             c_sel1, c_sel2 = st.columns([2.5, 3.5])
             with c_sel1:
                 ledger_strat = preferences.selectbox(
@@ -464,32 +487,33 @@ elif strategy_mode == "红利高抛低吸":
                 th_neutral=th_neutral
             )
 
-            st.caption("前一交易日信号 → 当日收盘调仓。减仓收益按加权持仓成本计入买卖费用，不代表完整做 T 轮次或账户总收益。")
+            st.caption("国债防守模式同时展示红利与国债的买卖；现金模式不生成现金买卖记录。下方胜率统计仅针对红利 ETF。")
+            st.caption(f"{timing_note}。减仓收益按加权持仓成本计入买卖费用，不代表完整做 T 轮次或账户总收益。")
 
             # 4 大做 T 交易统计卡片
             k1, k2, k3, k4 = st.columns(4)
             with k1:
-                st.metric("减仓盈利比例", f"{win_rate:.1f}%", f"{win_count} 胜 / {total_closed - win_count} 负")
+                st.metric("红利减仓盈利比例", f"{win_rate:.1f}%", f"{win_count} 胜 / {total_closed - win_count} 负")
             with k2:
-                st.metric("减仓笔数", f"{total_closed} 笔", f"总调仓 {len(ledger_df)} 次")
+                st.metric("红利减仓笔数", f"{total_closed} 笔", f"共 {len(ledger_df)} 条资产买卖记录")
             with k3:
-                pnl_numeric = ledger_df["pnl_raw"].dropna()
+                pnl_numeric = ledger_df.loc[ledger_df["标的代码"] == "512890.SH", "pnl_raw"].dropna()
                 avg_pnl = pnl_numeric.mean() if len(pnl_numeric) > 0 else 0.0
-                st.metric("减仓平均收益（含费）", f"{avg_pnl*100:+.2f}%")
+                st.metric("红利减仓平均收益（含费）", f"{avg_pnl*100:+.2f}%")
             with k4:
                 high_sells = (ledger_df["操作类型"].str.contains("高抛")).sum()
                 low_buys = (ledger_df["操作类型"].str.contains("低吸")).sum()
                 st.metric("高抛 / 低吸次数", f"{high_sells} 抛 / {low_buys} 吸")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            show_cols = ["交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "持仓天数", "交割状态", "量化触发依据"]
+            show_cols = ["成交模式", "防守资产", "交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "持仓天数", "交割状态", "量化触发依据"]
             st.dataframe(ledger_df[show_cols].rename(columns={"持仓天数": "距上次加仓（区间内）", "仓位调整": "目标仓位调整", "单笔盈亏": "减仓收益率（含费）"}), use_container_width=True, hide_index=True)
 
             ledger_csv = ledger_df[show_cols].rename(columns={"持仓天数": "距上次加仓（区间内）", "仓位调整": "目标仓位调整", "单笔盈亏": "减仓收益率（含费）"}).to_csv(index=False).encode("utf-8-sig")
             st.download_button(
                 f"导出【{ledger_strat.split('：')[0]}】逐笔交割账单 CSV",
                 data=ledger_csv,
-                file_name=f"trade_ledger_{sel_key}.csv",
+                file_name=f"trade_ledger_{sel_key}_{execution_price}_{defensive_asset}.csv",
                 mime="text/csv"
             )
 
@@ -532,7 +556,6 @@ elif strategy_mode == "红利高抛低吸":
             st.markdown("#### 核心量化指标监控走势")
             # 绘制 指标走势图
             from strategies.dividend_lowvol_swing_backtest import load_or_sync_data, compute_indicators
-            raw_data = compute_indicators(load_or_sync_data())
             raw_sub = raw_data.loc[(raw_data.index >= pd.to_datetime(start_date)) & (raw_data.index <= pd.to_datetime(end_date))]
 
             fig_ind = make_subplots(

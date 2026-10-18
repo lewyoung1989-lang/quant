@@ -1,0 +1,50 @@
+{
+  "config": {
+    "w_undervalue": 1.0,
+    "w_neutral": 0.5,
+    "w_overheat": 0.0,
+    "th_overheat": 0.25,
+    "th_neutral": 0.35,
+    "cost_rate": 0.0003
+  },
+  "range": [
+    "2019-04-19",
+    "2026-10-09"
+  ],
+  "stats": {
+    "same_close_cash": {
+      "total": 1.2671401295749458,
+      "annual": 0.1158664012113988,
+      "mean_defense": 0.3438123772661966
+    },
+    "same_close_bond": {
+      "total": 1.5464680482054796,
+      "annual": 0.13336739525695784,
+      "mean_defense": 0.3438297665171291
+    },
+    "open_cash": {
+      "total": 1.3440833635401495,
+      "annual": 0.12086574402357697,
+      "mean_defense": 0.34407887020583605
+    },
+    "open_bond": {
+      "total": 1.6578442767486714,
+      "annual": 0.13988438303419937,
+      "mean_defense": 0.34410281080821675
+    },
+    "close_cash": {
+      "total": 1.3884158562602105,
+      "annual": 0.12368203820797441,
+      "mean_defense": 0.34415315762811405
+    },
+    "close_bond": {
+      "total": 1.7071769688536271,
+      "annual": 0.14269567852967824,
+      "mean_defense": 0.3441617413443844
+    },
+    "bond_buy_hold": {
+      "total": 0.35779456193353476,
+      "drawdown": -0.04848091309835201
+    }
+  }
+}

@@ -40,7 +40,7 @@ def safe_print(*args, **kwargs):
     except OSError:
         pass
 
-def load_or_sync_data():
+def load_or_sync_data(defensive_asset="cash"):
     """加载并对齐 512890 行情、中证红利低波指数估值与十年期国债收益率"""
     etf_file = CACHE_DIR / "sh512890_kline.csv"
     idx_file = CACHE_DIR / "h30269_index_hist.csv"
@@ -69,16 +69,19 @@ def load_or_sync_data():
         df_rates = pd.read_csv(rate_file, index_col=0, parse_dates=True)
         
     from data.sina_fetcher import fetch_sina_stock_kline
-    df_bond = fetch_sina_stock_kline(BOND_SYMBOL, datalen=3000)
+    df_bond = fetch_sina_stock_kline(BOND_SYMBOL, datalen=3000) if defensive_asset == "bond" else None
     df_csi300 = fetch_sina_stock_kline("sh000300", datalen=3000)
 
     # 对齐共同交易日
-    idx = df_etf.index.intersection(df_idx.index).intersection(df_bond.index).intersection(df_csi300.index)
+    idx = df_etf.index.intersection(df_idx.index).intersection(df_csi300.index)
+    if df_bond is not None:
+        idx = idx.intersection(df_bond.index)
     df = df_etf.loc[idx].copy().sort_index()
     df["pe"] = df_idx.loc[idx, "滚动市盈率"]
     rates_10y = df_rates["中国国债收益率10年"].dropna()
     df["rate_10y"] = rates_10y.reindex(df.index).ffill().bfill()
-    df["bond_close"] = df_bond.loc[idx, "close"]
+    df["bond_close"] = df_bond.loc[idx, "close"] if df_bond is not None else 1.0
+    df["bond_open"] = df_bond.loc[idx, "open"] if df_bond is not None else 1.0
     df["csi300_close"] = df_csi300.loc[idx, "close"]
     
     return df
@@ -122,25 +125,41 @@ def run_simulation(
     w_undervalue: float = 1.00,
     th_overheat: float = 0.20,
     th_neutral: float = 0.35,
-    cost_rate: float = 0.0003
+    cost_rate: float = 0.0003,
+    execution_price: str = "close",
+    defensive_asset: str = "cash"
 ):
     """
     运行策略回测撮合引擎
-    交易成本: 每笔买卖成交额收取万1佣金 + 万2滑点；股债两腿分别计费。
-    前日信号于次日收盘成交；起点持有现金，首次成交前无持仓收益。
-    闲置资金: 配置十年期国债 ETF (511260)，实现真正的股债平衡与现金管理
+    交易成本: 每笔买卖成交额收取万1佣金 + 万2滑点；默认仅红利买卖计费，现金不收交易费。
+    前日信号于次日所选开盘或收盘价格成交；起点持有现金，首次成交前无持仓收益。
+    闲置资金: 默认不计息现金；bond 仅保留历史回归兼容
     策略二 ERP: 支持自定义三档区域仓位与分位线阈值
     """
     if not 0 <= th_overheat < th_neutral <= 1:
         raise ValueError("ERP 分位阈值须满足 0 ≤ 过热线 < 低估线 ≤ 1")
     if not all(0 <= w <= 1 for w in (w_overheat, w_neutral, w_undervalue)) or not 0 <= cost_rate < 1:
         raise ValueError("仓位或交易费率超出范围")
+    if execution_price not in ("open", "close", "same_close"):
+        raise ValueError("成交时点必须为 open、close 或 same_close")
+    if defensive_asset not in ("cash", "bond"):
+        raise ValueError("防守资产必须为 cash 或 bond")
+    signal_lag = 0 if execution_price == "same_close" else 1
+    price_column = "open" if execution_price == "open" else "close"
     valid_df = data.iloc[warmup:].copy()
+    if defensive_asset == "cash":
+        valid_df["bond_close"] = valid_df["bond_open"] = 1.0
     if len(valid_df) < 2:
         raise ValueError("预热后至少需要两个交易日")
     required = valid_df[["close", "bond_close", "csi300_close", "erp_pct", "ema30", "atr20", "bias20", "rsi14"]]
     if not np.isfinite(required.to_numpy()).all() or (valid_df[["close", "bond_close", "csi300_close"]] <= 0).any().any():
         raise ValueError("行情或指标缺失，无法进行可靠回测")
+    if execution_price == "open":
+        if not {"open", "bond_open"}.issubset(valid_df.columns):
+            raise ValueError("缺少红利或国债开盘价，不能进行开盘成交回测")
+        opens = valid_df[["open", "bond_open"]]
+        if not np.isfinite(opens.to_numpy()).all() or (opens <= 0).any().any():
+            raise ValueError("开盘价缺失或无效，不能进行开盘成交回测")
     etf_ret = valid_df["close"].pct_change().fillna(0.0)
     bond_ret = valid_df["bond_close"].pct_change().fillna(0.0)
     csi_ret = valid_df["csi300_close"].pct_change().fillna(0.0)
@@ -193,16 +212,16 @@ def run_simulation(
         equity_units = bond_units = 0.0
         cash = 1.0
         last_target = 0.0
-        average_cost = 0.0
+        average_cost = bond_average_cost = 0.0
         rows = []
         for i, dt in enumerate(valid_df.index):
-            price = float(valid_df.loc[dt, "close"])
-            bond_price = float(valid_df.loc[dt, "bond_close"])
+            price = float(valid_df.loc[dt, price_column])
+            bond_price = float(valid_df.loc[dt, "bond_" + price_column])
             before = cash + equity_units * price + bond_units * bond_price
-            target = last_target if i == 0 else float(weights_series.iloc[i - 1])
-            signal_date = pd.NaT if i == 0 else valid_df.index[i - 1]
-            equity_delta = fee = turnover = 0.0
-            trade_return = np.nan
+            target = last_target if i == 0 else float(weights_series.iloc[i - signal_lag])
+            signal_date = pd.NaT if i == 0 else valid_df.index[i - signal_lag]
+            equity_delta = bond_delta = fee = turnover = 0.0
+            trade_return = bond_trade_return = np.nan
             if i > 0 and (i == 1 or target != last_target):
                 old_equity = equity_units * price
                 old_bond = bond_units * bond_price
@@ -210,15 +229,20 @@ def run_simulation(
                 lo, hi = 0.0, before
                 for _ in range(60):
                     after = (lo + hi) / 2
-                    gross = abs(target * after - old_equity) + abs((1-target) * after - old_bond)
+                    gross = abs(target * after - old_equity) + (abs((1-target) * after - old_bond) if defensive_asset == "bond" else 0.0)
                     if after + gross * cost_rate > before:
                         hi = after
                     else:
                         lo = after
                 after = (lo + hi) / 2
                 new_equity = target * after / price
-                new_bond = (1-target) * after / bond_price
+                new_bond = (1-target) * after / bond_price if defensive_asset == "bond" else 0.0
                 equity_delta = new_equity - equity_units
+                bond_delta = new_bond - bond_units
+                if bond_delta > 0:
+                    bond_average_cost = (bond_units * bond_average_cost + bond_delta * bond_price * (1+cost_rate)) / new_bond
+                elif bond_delta < 0 and bond_average_cost > 0:
+                    bond_trade_return = bond_price * (1-cost_rate) / bond_average_cost - 1
                 gross = abs(equity_delta) * price + abs(new_bond-bond_units) * bond_price
                 fee = gross * cost_rate
                 turnover = gross / before
@@ -229,10 +253,14 @@ def run_simulation(
                 equity_units, bond_units = new_equity, new_bond
                 cash = before - equity_units*price - bond_units*bond_price - fee
                 last_target = target
-            nav = cash + equity_units*price + bond_units*bond_price
-            rows.append(dict(nav=nav, weight=target, actual_weight=equity_units*price/nav,
+            closing_equity = equity_units * float(valid_df.loc[dt, "close"])
+            nav = cash + closing_equity + bond_units * float(valid_df.loc[dt, "bond_close"])
+            rows.append(dict(nav=nav, weight=target, actual_weight=closing_equity/nav,
                              turnover=turnover, fee=fee, equity_delta=equity_delta,
-                             trade_return=trade_return, signal_date=signal_date))
+                             trade_return=trade_return, signal_date=signal_date,
+                             bond_delta=bond_delta, bond_trade_return=bond_trade_return,
+                             equity_fee=abs(equity_delta)*price*cost_rate,
+                             bond_fee=abs(bond_delta)*bond_price*cost_rate))
         return pd.DataFrame(rows, index=valid_df.index)
 
     res_s1 = simulate_weights(w_atr)
@@ -253,9 +281,13 @@ def run_simulation(
     }, index=valid_df.index)
     
     for key, result in (("s1", res_s1), ("s2", res_s2), ("s3", res_s3)):
-        for column in ("actual_weight", "turnover", "fee", "equity_delta", "trade_return", "signal_date"):
+        for column in ("actual_weight", "turnover", "fee", "equity_delta", "trade_return", "signal_date", "bond_delta", "bond_trade_return", "equity_fee", "bond_fee"):
             report_df[f"{key}_{column}"] = result[column]
-    report_df["s2_signal_erp_pct"] = valid_df["erp_pct"].shift(1)
+    report_df["execution_price"] = valid_df[price_column]
+    report_df["bond_execution_price"] = valid_df["bond_" + price_column]
+    report_df["execution_timing"] = execution_price
+    report_df["defensive_asset"] = defensive_asset
+    report_df["s2_signal_erp_pct"] = valid_df["erp_pct"].shift(signal_lag)
     report_df["s2_threshold_overheat"] = th_overheat
     report_df["s2_threshold_neutral"] = th_neutral
 
@@ -280,9 +312,9 @@ def generate_trade_ledger(
     """
     w_col = f"{strat_key}_weight" if f"{strat_key}_weight" in report_df.columns else "s2_weight"
     w_series = report_df[w_col]
-    prices = report_df["close"]
+    prices = report_df["execution_price"] if "execution_price" in report_df else report_df["close"]
     
-    ledger_columns = ["交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "pnl_raw", "持仓天数", "交割状态", "量化触发依据"]
+    ledger_columns = ["交割日期", "信号日期", "标的代码", "标的名称", "操作类型", "成交价格", "仓位调整", "调仓幅度", "单笔盈亏", "pnl_raw", "持仓天数", "交割状态", "量化触发依据", "成交模式", "防守资产"]
     if report_df.empty:
         return pd.DataFrame(columns=ledger_columns), 0.0, 0, 0
     records = []
@@ -363,7 +395,9 @@ def generate_trade_ledger(
                 "pnl_raw": pnl_val,
                 "持仓天数": f"{max(hold_days, 1)}天",
                 "交割状态": status,
-                "量化触发依据": reason
+                "防守资产": "现金（不计息）" if report_df.iloc[i].get("defensive_asset") == "cash" else "国债ETF",
+                "成交模式": {"open": "次日开盘成交", "close": "次日收盘成交", "same_close": "当日收盘成交（理想化对照）"}.get(report_df.iloc[i].get("execution_timing", "close")),
+                "量化触发依据": reason.replace("前一交易日", "当日最终收盘") if report_df.iloc[i].get("execution_timing") == "same_close" else reason
             })
             
             if is_buy:
@@ -371,7 +405,46 @@ def generate_trade_ledger(
                 last_buy_date = dt
             prev_w = cur_w
             
+    # Defensive trades come from executed unit changes, including a bond-only first entry.
+    bond_last_buy = None
+    for i in range(1, len(report_df)):
+        row = report_df.iloc[i]
+        delta = row.get(f"{strat_key}_bond_delta", 0.0)
+        if row.get("defensive_asset") != "bond" or abs(delta) < 1e-14:
+            continue
+        dt = report_df.index[i]
+        signal_dt = row.get(f"{strat_key}_signal_date", pd.NaT)
+        buying = delta > 0
+        pnl = row.get(f"{strat_key}_bond_trade_return", np.nan)
+        previous_target = 1-float(w_series.iloc[i-1])
+        # The initial portfolio is cash, even when the equity target starts at zero.
+        if (report_df[f"{strat_key}_bond_delta"].iloc[:i].abs().sum() == 0
+                and float(w_series.iloc[:i].abs().sum()) == 0):
+            previous_target = 0.0
+        target = 1-float(w_series.iloc[i])
+        records.append({
+            "交割日期": dt.strftime("%Y-%m-%d"),
+            "信号日期": signal_dt.strftime("%Y-%m-%d") if pd.notna(signal_dt) else "未知",
+            "标的代码": "511260.SH", "标的名称": "十年国债ETF（511260.SH）",
+            "操作类型": "防守买入" if buying else "防守卖出",
+            "成交价格": round(float(row["bond_execution_price"]), 3),
+            "仓位调整": f"{previous_target*100:g}% ➔ {target*100:g}%",
+            "调仓幅度": f"{abs(target-previous_target)*100:g}%",
+            "单笔盈亏": "-" if pd.isna(pnl) else f"{pnl*100:+.2f}%",
+            "pnl_raw": None if pd.isna(pnl) else float(pnl),
+            "持仓天数": "-" if bond_last_buy is None else f"{(dt-bond_last_buy).days}天",
+            "交割状态": "调仓中" if buying else ("盈利 🟢" if pnl > 0 else "亏损 🔴"),
+            "防守资产": "国债ETF",
+            "成交模式": {"open": "次日开盘成交", "close": "次日收盘成交", "same_close": "当日收盘成交（理想化对照）"}.get(row.get("execution_timing", "close")),
+            "量化触发依据": f"配套防守配置：红利目标 {float(w_series.iloc[i])*100:g}%，国债目标 {target*100:g}%；" + ("将资金转入国债" if buying else "卖出国债，释放调仓资金")
+        })
+        if buying:
+            bond_last_buy = dt
     ledger_df = pd.DataFrame(records, columns=ledger_columns)
+    if not ledger_df.empty:
+        # Show sales before purchases within the same rebalance.
+        ledger_df['_order'] = ledger_df['操作类型'].str.contains('买入|低吸').astype(int)
+        ledger_df = ledger_df.sort_values(['交割日期', '_order'], kind='stable').drop(columns='_order').reset_index(drop=True)
     win_rate = (win_count / total_closed * 100) if total_closed > 0 else 0.0
     return ledger_df, win_rate, total_closed, win_count
 
@@ -486,10 +559,12 @@ def run_dividend_backtest(
     w_undervalue: float = 1.00,
     th_overheat: float = 0.20,
     th_neutral: float = 0.35,
-    cost_rate: float = 0.0003
+    cost_rate: float = 0.0003,
+    execution_price: str = "close",
+    defensive_asset: str = "cash"
 ):
     safe_print("[*] 正在加载 512890 及相关资产数据...")
-    df = load_or_sync_data()
+    df = load_or_sync_data(defensive_asset=defensive_asset)
     safe_print(f"[*] 数据加载完成: {len(df)} 交易日 ({df.index.min().strftime('%Y-%m-%d')} ~ {df.index.max().strftime('%Y-%m-%d')})")
     
     safe_print("[*] 正在计算技术与宏观指标 (ATR, EMA, ERP, BIAS, RSI)...")
@@ -503,7 +578,9 @@ def run_dividend_backtest(
         w_undervalue=w_undervalue,
         th_overheat=th_overheat,
         th_neutral=th_neutral,
-        cost_rate=cost_rate
+        cost_rate=cost_rate,
+        execution_price=execution_price,
+        defensive_asset=defensive_asset
     )
     
     # 导出日度明细 CSV
