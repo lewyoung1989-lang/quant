@@ -78,6 +78,21 @@ class SimulationTests(unittest.TestCase):
         with self.assertRaises(AccountError):
             self.store.create('无效',100000,'dividend_erp',{**legacy,'defensive_asset':'bad'})
 
+    def test_legacy_opening_snapshot_is_evidence_not_synthetic_trade(self):
+        a=self.account()
+        original=self.store.get(a['id'])
+        source=self.store.directory/'simulated_accounts.json'
+        source.write_text(json.dumps({'旧账户':{'holding_symbol':'sh512890','holding_amount':61500,'cash_available':25031.5,'updated_at':'2026-10-16 19:15:12'}}))
+        snapshot=self.store.legacy_opening_snapshot({**a,'legacy_name':'旧账户'})
+        self.assertEqual(snapshot['positions'],[{'symbol':'sh512890','shares':61500}])
+        self.assertEqual(snapshot['cash'],25031.5)
+        self.assertNotIn('price',snapshot['positions'][0])
+        self.assertEqual(self.store.entries(a['id'],'trade'),[])
+        self.assertEqual(self.store.get(a['id']),original)
+        self.assertIsNone(self.store.legacy_opening_snapshot(a))
+        source.write_text('broken')
+        self.assertIsNone(self.store.legacy_opening_snapshot({**a,'legacy_name':'旧账户'}))
+
     def test_default_manual_and_unique_name(self):
         a = self.account()
         self.assertFalse(a["auto_trade"])

@@ -156,6 +156,29 @@ class SimulationStore:
     def entry(conn, account_id, kind, data, dedupe_key=None, time=None):
         conn.execute("INSERT OR IGNORE INTO entries(id,account_id,kind,time,payload,dedupe_key) VALUES(?,?,?,?,?,?)", (str(uuid.uuid4()), account_id, kind, time or timestamp(), json.dumps(data, ensure_ascii=False), dedupe_key))
 
+    def legacy_opening_snapshot(self, account):
+        """Original migration evidence, never synthesize fills from a position balance."""
+        name = account.get('legacy_name')
+        if not name:
+            return None
+        source = self.directory / 'simulated_accounts.json'
+        try:
+            old = json.loads(source.read_text()).get(name)
+            if not isinstance(old, dict):
+                return None
+            positions = []
+            for symbol_key, shares_key in [('holding_symbol', 'holding_amount'), ('bond_symbol', 'bond_amount')]:
+                symbol, shares = old.get(symbol_key), old.get(shares_key, 0)
+                if symbol and isinstance(shares, (int, float)) and math.isfinite(shares) and shares > 0 and int(shares) == shares:
+                    positions.append({'symbol': str(symbol).lower(), 'shares': int(shares)})
+            if not positions:
+                return None
+            return {'asof': old.get('updated_at', '未知'), 'positions': positions,
+                    'cash': old.get('cash_available'), 'source': source.name,
+                    'note': ('此持仓与旧版账户 3 的预置初始化值一致，不是可核实的策略买入；旧版代码预置 61,500 份红利及现金 25,031.50 元。' if name == '模拟实盘 3 号 (红利低波ERP择时高抛低吸)' and positions == [{'symbol': 'sh512890', 'shares': 61500}] and old.get('cash_available') == 25031.5 else '旧账户持仓快照，不是成交回报；无法据此确认首次买入的时间、价格和费用。')}
+        except (OSError, ValueError, TypeError, AttributeError):
+            return None
+
     def entries(self, account_id, kind, limit=1000):
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM entries WHERE account_id=? AND kind=? ORDER BY seq DESC LIMIT ?", (account_id, kind, limit))

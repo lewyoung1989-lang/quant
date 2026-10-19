@@ -63,7 +63,7 @@ def snapshot(store, selected=None):
         rows.append(dict(id=a['id'], name=a['name'], revision=a['revision'], strategy='erp' if a['strategy_type']=='dividend_erp' else 'rotation',
                          config=frontend_config(a), initial=a['initial_capital'], netCapital=a['net_capital'], cash=a['cash_available'],
                          auto=a['auto_trade'], running=a['running'], feeRate=a['fee_rate'], created=a['created_at'][:10],
-                         positions=positions, portfolio=port, trades=records('trade'), funds=records('fund'), events=records('event'),
+                         positions=positions, portfolio=port, legacyOpening=store.legacy_opening_snapshot(a), trades=records('trade'), funds=records('fund'), events=records('event'),
                          plan=dict(id=p['id'], orders=p['orders'], fees=p['fees'], remaining=p['remaining_cash'], error=p['error'], signal=sig,
                                    canExecute=p['can_execute'], reasons=p['reasons'], quoteTimes=p['quote_times'],
                                    target=dict(symbol=sig['target_symbol'] if sig else '', weight=sig['weight']*100 if sig else None),

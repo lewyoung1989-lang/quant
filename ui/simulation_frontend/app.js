@@ -56,7 +56,9 @@ function renderWorkspace(){
     <div id="tab-panel" class="tab-content${refreshing?' loading-surface':''}" role="tabpanel" aria-labelledby="tab-${activeTab}" aria-busy="${refreshing}">${activeTab==='overview'?overview(a,p):activeTab==='trades'?trades(a):activeTab==='funds'?funds(a):activeTab==='events'?events(a):settingsPreview(a)}</div>`;
 }
 function trades(a){
-  return `<div class="record-heading"><div><h3>成交记录</h3><p>每次模拟调仓的买卖明细，按成交时间倒序。</p></div><div class="record-tools"><select id="trade-filter" class="small-select" aria-label="筛选成交方向"><option value="all">全部方向</option><option value="买入">买入</option><option value="卖出">卖出</option></select><button class="button compact" data-action="export-trades" ${a.trades.length?'':'disabled'}>${icon('download')}导出 CSV</button></div></div><div id="trade-table">${tradeTable(a,'all')}</div>`;
+  const old=a.legacyOpening;
+  const opening=old?`<section class="notice amber"><strong>历史建仓资料 · 旧账户持仓快照</strong><p>快照时间：${esc(old.asof)}（不是买入时间）。${esc(old.note)}</p><p>${old.positions.map(p=>`${esc(ASSETS[p.symbol]?.name||p.symbol)}（${esc(p.symbol.toUpperCase())}）：${number(p.shares,0)} 份`).join('；')}；当时现金 ${money(old.cash)}。</p><p>下方及 CSV 仅列已保存的成交回报，历史快照不计入成交笔数。</p></section>`:'';
+  return `<div class="record-heading"><div><h3>成交记录</h3><p>每次模拟调仓的买卖明细，按成交时间倒序。</p></div><div class="record-tools"><select id="trade-filter" class="small-select" aria-label="筛选成交方向"><option value="all">全部方向</option><option value="买入">买入</option><option value="卖出">卖出</option></select><button class="button compact" data-action="export-trades" ${a.trades.length?'':'disabled'}>${icon('download')}导出 CSV</button></div></div>${opening}<div id="trade-table">${tradeTable(a,'all')}</div>`;
 }
 function tradeTable(a,filter){
   const rows=a.trades.filter(t=>filter==='all'||t.action===filter);

@@ -49,10 +49,10 @@ def get_all_accounts():
         "模拟实盘 3 号 (红利低波ERP择时高抛低吸)": {
             "initial_capital": 100000.0,
             "holding_symbol": "sh512890",
-            "holding_amount": 61500,
+            "holding_amount": 0,
             "bond_symbol": "sh511260",
             "bond_amount": 0,
-            "cash_available": 25031.5,
+            "cash_available": 100000.0,
             "strategy_type": "dividend_erp",
             "auto_trade": True,
             "created_at": "2026-10-16",
