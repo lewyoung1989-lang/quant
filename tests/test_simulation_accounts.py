@@ -37,6 +37,47 @@ class SimulationTests(unittest.TestCase):
     def execute(self, a, p, key="first", q=None, signal=None, at=AT, automatic=False):
         return execute_plan(self.store, a["id"], p["id"], key, quotes=self.quotes() if q is None else q, signal=signal or self.signal(), at=at, automatic=automatic)
 
+    def test_erp_bond_two_leg_execution_and_cash_switch(self):
+        a = self.store.create('国债防守', 100000, 'dividend_erp',
+                              {**defaults('dividend_erp'), 'defensive_asset': 'sh511260'})
+        sig = self.signal('sh512890', .5)
+        p = self.plan(a, signal=sig)
+        self.assertTrue(p['can_execute'], p['reasons'])
+        self.assertEqual({o['symbol'] for o in p['orders']}, {'sh512890', 'sh511260'})
+        self.execute(a, p, signal=sig)
+        a = self.store.get(a['id'])
+        self.assertGreaterEqual(a['cash_available'], 0)
+        self.assertAlmostEqual(portfolio(a,self.quotes())['total'],100000-p['fees'],places=2)
+        # T+0 bond sale funds more equity without liquidating the equity already held.
+        full = self.signal('sh512890', 1)
+        p = self.plan(a, signal=full)
+        self.assertEqual([(o['action'],o['symbol']) for o in p['orders']], [('卖出','sh511260'),('买入','sh512890')])
+        self.execute(a,p,key='full',signal=full)
+        a = self.store.get(a['id'])
+        p = self.plan(a,signal=self.signal('sh512890',0))
+        self.assertFalse(p['can_execute'])
+        self.assertTrue(any('T+1' in reason for reason in p['reasons']))
+
+    def test_erp_bond_initial_defense_and_switch_to_cash(self):
+        a = self.store.create('纯防守',100000,'dividend_erp',
+                              {**defaults('dividend_erp'),'defensive_asset':'sh511260'})
+        sig = self.signal('sh512890',0)
+        p = self.plan(a,signal=sig)
+        self.assertEqual([(o['action'],o['symbol']) for o in p['orders']],[('买入','sh511260')])
+        self.execute(a,p,signal=sig)
+        a=self.store.get(a['id'])
+        self.store.configure(a['id'],a['revision'],a['name'],'dividend_erp',defaults('dividend_erp'),False,a['fee_rate'])
+        p=self.plan(self.store.get(a['id']),signal=sig)
+        self.assertEqual([(o['action'],o['symbol']) for o in p['orders']],[('卖出','sh511260')])
+        self.assertTrue(p['can_execute'])
+
+    def test_erp_defense_validation_and_legacy_default(self):
+        legacy=defaults('dividend_erp');legacy.pop('defensive_asset')
+        a=self.store.create('兼容',100000,'dividend_erp',legacy)
+        self.assertEqual(a['parameters']['defensive_asset'],'cash')
+        with self.assertRaises(AccountError):
+            self.store.create('无效',100000,'dividend_erp',{**legacy,'defensive_asset':'bad'})
+
     def test_default_manual_and_unique_name(self):
         a = self.account()
         self.assertFalse(a["auto_trade"])

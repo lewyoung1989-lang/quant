@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from services.simulation_store import AccountError, SimulationStore, defaults, now
-from ui.simulation_component import dispatch, snapshot
+from ui.simulation_component import dispatch, snapshot, frontend_config
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -37,6 +37,13 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(updated['cash_available'],100000)
         self.assertTrue(updated['auto_trade'])
         self.assertFalse(updated['running'])
+
+    def test_erp_defense_bridge_persists_choice(self):
+        self.command('configure',revision=1,name='防守配置',strategy='erp',
+                     config={'low':20,'high':35,'lowWeight':0,'midWeight':50,'highWeight':100,'defense':'sh511260'},auto=False,feeRate=.0003)
+        account=self.store.get(self.account['id'])
+        self.assertEqual(account['parameters']['defensive_asset'],'sh511260')
+        self.assertEqual(frontend_config(account)['defense'],'sh511260')
 
     def test_funds_retry_and_stale_drawer_revision(self):
         self.command('funds',revision=1,amount=25000,withdraw=False)

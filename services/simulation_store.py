@@ -27,7 +27,7 @@ def timestamp():
 def defaults(strategy, legacy=False):
     if strategy == "dividend_erp":
         return {"threshold_low": .20, "threshold_high": .35,
-                "weight_low": .50 if legacy else 0.0, "weight_mid": .75 if legacy else .50, "weight_high": 1.0}
+                "weight_low": .50 if legacy else 0.0, "weight_mid": .75 if legacy else .50, "weight_high": 1.0, "defensive_asset": "cash"}
     return {"tech_symbol": "sh588380", "def_symbol": "sh511010", "lookback_window": 20}
 
 
@@ -56,6 +56,9 @@ def amount(value, minimum=.01, maximum=1_000_000_000):
 def validate_config(strategy, config):
     if strategy not in STRATEGIES:
         raise AccountError("请选择已支持的模拟策略。")
+    config = dict(config)
+    if strategy == "dividend_erp":
+        config.setdefault("defensive_asset", "cash")
     expected = defaults(strategy)
     if set(config) != set(expected):
         raise AccountError("策略参数不完整，请重新填写。")
@@ -66,7 +69,9 @@ def validate_config(strategy, config):
         if not isinstance(n, (int, float)) or not math.isfinite(n) or int(n) != n or not 5 <= n <= 120:
             raise AccountError("动量周期须为 5–120 个交易日。")
     else:
-        if any(not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 1 for v in config.values()):
+        if config["defensive_asset"] not in ("cash", "sh511260"):
+            raise AccountError("防守资产请选择现金或十年国债 ETF（511260）。")
+        if any(not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 1 for k, v in config.items() if k != "defensive_asset"):
             raise AccountError("分位阈值与仓位须在 0%–100% 之间。")
         if config["threshold_low"] >= config["threshold_high"]:
             raise AccountError("高估分位上限必须小于低估分位下限。")

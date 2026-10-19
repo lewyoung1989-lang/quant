@@ -32,7 +32,7 @@ def frontend_config(account):
     p = account['parameters']
     if account['strategy_type'] == 'rotation':
         return dict(attack=p['tech_symbol'], defense=p['def_symbol'], lookback=p['lookback_window'])
-    return dict(low=p['threshold_low']*100, high=p['threshold_high']*100,
+    return dict(defense=p.get('defensive_asset', 'cash'), low=p['threshold_low']*100, high=p['threshold_high']*100,
                 lowWeight=p['weight_low']*100, midWeight=p['weight_mid']*100, highWeight=p['weight_high']*100)
 
 
@@ -42,7 +42,7 @@ def backend_config(action):
         return 'rotation', dict(tech_symbol=c['attack'], def_symbol=c['defense'], lookback_window=c['lookback'])
     if action['strategy'] != 'erp':
         raise AccountError('请选择已支持的策略。')
-    return 'dividend_erp', dict(threshold_low=c['low']/100, threshold_high=c['high']/100,
+    return 'dividend_erp', dict(defensive_asset=c.get('defense', 'cash'), threshold_low=c['low']/100, threshold_high=c['high']/100,
                                weight_low=c['lowWeight']/100, weight_mid=c['midWeight']/100, weight_high=c['highWeight']/100)
 
 

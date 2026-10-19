@@ -141,7 +141,7 @@ def strategy_signal(account, quotes, at):
     return {"valid": True, "target_symbol": "sh512890", "weight": weight,
             "historical_asof": raw.index[-1].strftime("%Y-%m-%d"), "erp": erp, "erp_pct": percentile,
             "pe": pe, "rate_10y": rate, "band": band,
-            "description": f"ERP 分位 {percentile:.1%}，处于{band}；目标红利仓位 {weight:.0%}，其余留现金。"}
+            "description": f"ERP 分位 {percentile:.1%}，处于{band}；目标红利仓位 {weight:.0%}，其余目标配置十年国债 ETF（511260）。" if p.get("defensive_asset") == "sh511260" else f"ERP 分位 {percentile:.1%}，处于{band}；目标红利仓位 {weight:.0%}，其余留现金。"}
 
 
 def sellable(position, day):
@@ -155,6 +155,8 @@ def allocation(account, signal, quotes, at):
     port = portfolio(account, quotes)
     if port["total"] is None:
         raise AccountError("持仓估值不完整，暂不能生成数量清单。")
+    if account['strategy_type'] == 'dividend_erp' and account['parameters'].get('defensive_asset') == 'sh511260':
+        return allocate_erp_bond(account, signal, quotes, at, port)
     target = signal["target_symbol"]
     price = positive_price(quotes.get(target, {}))
     if price is None:
@@ -192,6 +194,44 @@ def allocation(account, signal, quotes, at):
         cash = round(cash - gross - fee, 2)
     if signal["weight"] > 0 and held == 0 and buy == 0:
         blocks.append("可用资金不足一手，无法完成首次建仓；请先入金。")
+    return orders, blocks, cash
+
+
+def allocate_erp_bond(account, signal, quotes, at, port):
+    """Plan both ETF legs; keep lot-size remainders as cash and sell before buying."""
+    weights = {'sh512890': float(signal['weight']), 'sh511260': 1-float(signal['weight'])}
+    rate = account['fee_rate']
+    prices = {s: positive_price(quotes.get(s, {})) for s in weights}
+    if any(v is None for v in prices.values()):
+        raise AccountError('红利或国债 ETF 行情缺失，暂不能生成调仓清单。')
+    wanted = {s: math.floor(port['total']*w/(prices[s]*100))*100 for s, w in weights.items()}
+    cash, orders, blocks = account['cash_available'], [], []
+    held = {p['symbol']: p['shares'] for p in account['positions']}
+    for p in account['positions']:
+        qty = max(0, p['shares']-wanted.get(p['symbol'], 0))
+        if not qty:
+            continue
+        price = positive_price(quotes.get(p['symbol'], {}))
+        if price is None:
+            raise AccountError('现有持仓行情缺失，暂不能执行。')
+        available = sellable(p, at.date().isoformat())
+        if available < qty:
+            blocks.append(f"{ASSETS.get(p['symbol'], p['symbol'])}需卖 {qty:,} 份，可卖仅 {available:,} 份（T+1 限制）")
+        gross = round(qty*price, 2); fee = round(gross*rate, 2)
+        orders.append(dict(action='卖出', symbol=p['symbol'], name=ASSETS.get(p['symbol'], p['symbol']), shares=qty, price=price, amount=gross, fee=fee, status='先卖出' if available>=qty else 'T+1 受限'))
+        cash = round(cash+gross-fee, 2)
+        held[p['symbol']] -= qty
+    for symbol, goal in wanted.items():
+        price = prices[symbol]
+        qty = min(max(0, goal-held.get(symbol, 0)), max(0, math.floor(cash/(price*(1+rate)*100))*100))
+        while qty > 0 and round(qty*price, 2)+round(round(qty*price, 2)*rate, 2)>cash:
+            qty -= 100
+        if qty:
+            gross = round(qty*price, 2); fee = round(gross*rate, 2)
+            orders.append(dict(action='买入', symbol=symbol, name=ASSETS.get(symbol, symbol), shares=qty, price=price, amount=gross, fee=fee, status='调仓资金买入'))
+            cash = round(cash-gross-fee, 2)
+    if not account['positions'] and not orders and any(weights.values()):
+        blocks.append('可用资金不足一手，无法完成首次建仓；请先入金。')
     return orders, blocks, cash
 
 
