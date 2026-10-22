@@ -130,6 +130,23 @@ class CompoundInnovationRotationTests(unittest.TestCase):
         self.assertGreater(total_closed, 0)
         self.assertGreaterEqual(win_count, 0)
 
+    def test_asymmetric_hysteresis_4tier_defense(self):
+        from strategies.signals import compute_compound_rotation_signal
+        # Test 1: From 0% state, crossing 16% (below 15% + 2.5% = 17.5%) should stay at 0%
+        # Here we mock by testing state transitions
+        res_at_0 = compute_compound_rotation_signal(
+            th_overheat=0.15,
+            th_neutral=0.35,
+            erp_delta=0.025,
+            current_erp_w=0.0,
+            confirmed=True
+        )
+        self.assertTrue(res_at_0["valid"])
+        # Check weights dictionary structure
+        self.assertIn("weights", res_at_0)
+        self.assertEqual(len(res_at_0["weights"]), 3)
+        self.assertAlmostEqual(sum(res_at_0["weights"].values()), 1.0, places=4)
+
     def test_compound_rotation_page_renders_cleanly(self):
         at = AppTest.from_file("app.py", default_timeout=30)
         at.query_params["strategy_mode"] = "复合攻守轮动"

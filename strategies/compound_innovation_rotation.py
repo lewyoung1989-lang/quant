@@ -41,6 +41,7 @@ def run_compound_innovation_rotation(
     execution_mode="same_close",
     th_overheat=0.20,
     th_neutral=0.35,
+    erp_delta=0.025,
     start_time="2019-01-18",
     end_time="2026-10-20",
     benchmark="sh000300",
@@ -125,29 +126,33 @@ def run_compound_innovation_rotation(
         if np.isnan(p):
             w_erp_list.append(1.0)
             continue
+        th_mid = (th_overheat + th_neutral) / 2.0
+        delta = float(erp_delta)
         if use_erp_hysteresis:
-            # 引入施密特触发器缓冲带
-            low_bound = th_neutral - 0.03   # 约 0.32
-            high_bound = th_neutral + 0.03  # 约 0.38
-            cold_bound = th_overheat - 0.02  # 约 0.18
-            warm_bound = th_overheat + 0.02  # 约 0.22
-
-            if cur_w == 1.0:
-                if p <= low_bound:
-                    cur_w = 0.50
-            elif cur_w == 0.50:
-                if p >= high_bound:
+            # 不对称保护性防抖状态转移 (2.5% 防抖)
+            if cur_w == 1.00:
+                if p <= (th_neutral - delta):
+                    cur_w = 0.70
+            elif cur_w == 0.70:
+                if p >= th_neutral:  # 深度价值零延迟打满
                     cur_w = 1.00
-                elif p <= cold_bound:
+                elif p <= (th_mid - delta):
+                    cur_w = 0.30
+            elif cur_w == 0.30:
+                if p >= (th_mid + delta):
+                    cur_w = 0.70
+                elif p <= th_overheat:  # 极值过热零延迟避险
                     cur_w = 0.00
             elif cur_w == 0.00:
-                if p >= warm_bound:
-                    cur_w = 0.50
+                if p >= (th_overheat + delta):  # 防假突破，确认后建仓
+                    cur_w = 0.30
         else:
             if p <= th_overheat:
                 cur_w = 0.00
+            elif p <= th_mid:
+                cur_w = 0.30
             elif p <= th_neutral:
-                cur_w = 0.50
+                cur_w = 0.70
             else:
                 cur_w = 1.00
         w_erp_list.append(cur_w)
@@ -209,8 +214,12 @@ def run_compound_innovation_rotation(
         else:
             if erp_w == 1.0:
                 state_str = f"防守【{div_name} 100%】🛡️"
+            elif erp_w == 0.7:
+                state_str = f"防守【{div_name} 70% + {bond_name} 30%】⚖️"
             elif erp_w == 0.5:
                 state_str = f"防守【{div_name} 50% + {bond_name} 50%】⚖️"
+            elif erp_w == 0.3:
+                state_str = f"防守【{div_name} 30% + {bond_name} 70%】🛡️"
             else:
                 state_str = f"防守【{bond_name} 100%】🔒"
 

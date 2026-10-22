@@ -125,15 +125,32 @@ def strategy_signal(account, quotes, at):
         confirmed = p.get("execution_mode") == "next_open"
         if confirmed:
             signal_quotes = {symbol: {**quote, "price": quote.get("prev_close") or quote.get("price")} for symbol, quote in quotes.items()}
+        
+        # 提取当前防守持仓配比，以驱动 2.5% 不对称防抖状态机
+        div_symbol = p.get("div_symbol", "sh512890")
+        bond_symbol = p.get("bond_symbol", p.get("def_symbol", "sh511260"))
+        div_shares = next((pos["shares"] for pos in account.get("positions", []) if pos["symbol"] == div_symbol), 0)
+        bond_shares = next((pos["shares"] for pos in account.get("positions", []) if pos["symbol"] == bond_symbol), 0)
+        current_erp_w = 0.0
+        if div_shares + bond_shares > 0:
+            div_p = float(signal_quotes.get(div_symbol, {}).get("price") or 1.0)
+            bond_p = float(signal_quotes.get(bond_symbol, {}).get("price") or 1.0)
+            div_val = div_shares * div_p
+            bond_val = bond_shares * bond_p
+            if div_val + bond_val > 0:
+                current_erp_w = div_val / (div_val + bond_val)
+
         result = compute_compound_rotation_signal(
             tech_symbol=p["tech_symbol"],
-            div_symbol=p.get("div_symbol", "sh512890"),
-            bond_symbol=p.get("bond_symbol", p.get("def_symbol", "sh511260")),
+            div_symbol=div_symbol,
+            bond_symbol=bond_symbol,
             lookback_window=int(p["lookback_window"]),
             use_bias_exit=bool(p.get("use_bias_exit", True)),
             use_trend_filter=bool(p.get("use_trend_filter", True)),
             th_overheat=float(p.get("th_overheat", 0.20)),
             th_neutral=float(p.get("th_neutral", 0.35)),
+            erp_delta=float(p.get("erp_delta", 0.025)),
+            current_erp_w=current_erp_w,
             live_quotes=signal_quotes,
             as_of=at,
             confirmed=confirmed
