@@ -11,9 +11,11 @@ from zoneinfo import ZoneInfo
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 ROOT = Path(__file__).resolve().parents[1]
-STRATEGIES = {"rotation": "攻守动量轮动", "dividend_erp": "红利低波 ERP 择时"}
-ATTACKS = {"sh588380", "sz159915", "sh588000"}
-DEFENSES = {"sh511010", "sh511260", "sh512890"}
+STRATEGIES = {"rotation": "攻守动量轮动", "compound_rotation": "复合攻守轮动", "dividend_erp": "红利低波 ERP 择时"}
+ATTACKS = {"sz159915", "sh588380", "sh588000", "sh510300", "sh510500"}
+DIV_DEFENSES = {"sh512890", "sh510880"}
+BOND_DEFENSES = {"sh511260", "sh511010", "sh511090"}
+DEFENSES = {"sh511010", "sh511260", "sh512890", "sh510880", "sh511090"}
 
 
 def now():
@@ -27,7 +29,14 @@ def timestamp():
 def defaults(strategy, legacy=False):
     if strategy == "dividend_erp":
         return {"threshold_low": .20, "threshold_high": .35,
-                "weight_low": .50 if legacy else 0.0, "weight_mid": .75 if legacy else .50, "weight_high": 1.0, "defensive_asset": "cash"}
+                "weight_low": .50 if legacy else 0.0, "weight_mid": .75 if legacy else .50, "weight_high": 1.0, "defensive_asset": "cash", "execution_mode": "tail"}
+    if strategy == "compound_rotation":
+        return {
+            "tech_symbol": "sz159915", "div_symbol": "sh512890", "bond_symbol": "sh511260",
+            "lookback_window": 20, "execution_mode": "next_open",
+            "use_bias_exit": True, "use_trend_filter": True,
+            "th_overheat": 0.20, "th_neutral": 0.35
+        }
     return {"tech_symbol": "sh588380", "def_symbol": "sh511010", "lookback_window": 20}
 
 
@@ -59,6 +68,24 @@ def validate_config(strategy, config):
     config = dict(config)
     if strategy == "dividend_erp":
         config.setdefault("defensive_asset", "cash")
+        config.setdefault("execution_mode", "tail")
+    elif strategy == "compound_rotation":
+        # 兼容旧配置中的单一 def_symbol
+        if "def_symbol" in config and "bond_symbol" not in config:
+            def_s = config.pop("def_symbol")
+            if def_s in DIV_DEFENSES:
+                config["div_symbol"] = def_s
+            else:
+                config["bond_symbol"] = def_s
+        config.setdefault("div_symbol", "sh512890")
+        config.setdefault("bond_symbol", "sh511260")
+        config.setdefault("lookback_window", 20)
+        config.setdefault("execution_mode", "next_open")
+        config.setdefault("use_bias_exit", True)
+        config.setdefault("use_trend_filter", True)
+        config.setdefault("th_overheat", 0.20)
+        config.setdefault("th_neutral", 0.35)
+
     expected = defaults(strategy)
     if set(config) != set(expected):
         raise AccountError("策略参数不完整，请重新填写。")
@@ -68,10 +95,28 @@ def validate_config(strategy, config):
         n = config["lookback_window"]
         if not isinstance(n, (int, float)) or not math.isfinite(n) or int(n) != n or not 5 <= n <= 120:
             raise AccountError("动量周期须为 5–120 个交易日。")
+    elif strategy == "compound_rotation":
+        if config["tech_symbol"] not in ATTACKS:
+            raise AccountError("请选择支持的进攻 ETF。")
+        if config["div_symbol"] not in DIV_DEFENSES:
+            raise AccountError("请选择支持的防守底仓（红利类）ETF。")
+        if config["bond_symbol"] not in BOND_DEFENSES:
+            raise AccountError("请选择支持的避险防守（国债类）ETF。")
+        n = config["lookback_window"]
+        if not isinstance(n, (int, float)) or not math.isfinite(n) or int(n) != n or not 5 <= n <= 120:
+            raise AccountError("动量周期须为 5–120 个交易日。")
+        if config["execution_mode"] not in ("tail", "next_open"):
+            raise AccountError("请选择尾盘实时或次日开盘执行。")
+        th_o = float(config["th_overheat"])
+        th_n = float(config["th_neutral"])
+        if not (0.01 <= th_o < th_n <= 0.99):
+            raise AccountError("ERP 阈值须满足：0 < 过热高抛阈值 < 低吸满仓阈值 < 100%。")
     else:
+        if config["execution_mode"] not in ("tail", "next_open"):
+            raise AccountError("请选择尾盘实时或次日开盘执行。")
         if config["defensive_asset"] not in ("cash", "sh511260"):
             raise AccountError("防守资产请选择现金或十年国债 ETF（511260）。")
-        if any(not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 1 for k, v in config.items() if k != "defensive_asset"):
+        if any(not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 1 for k, v in config.items() if k not in ("defensive_asset", "execution_mode")):
             raise AccountError("分位阈值与仓位须在 0%–100% 之间。")
         if config["threshold_low"] >= config["threshold_high"]:
             raise AccountError("高估分位上限必须小于低估分位下限。")

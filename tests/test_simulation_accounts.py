@@ -93,6 +93,68 @@ class SimulationTests(unittest.TestCase):
         source.write_text('broken')
         self.assertIsNone(self.store.legacy_opening_snapshot({**a,'legacy_name':'旧账户'}))
 
+    def test_next_open_uses_open_price_and_refuses_tail_and_missing_open(self):
+        at=AT.replace(hour=9,minute=31)
+        a=self.store.create('开盘账户',100000,'dividend_erp',
+            {**defaults('dividend_erp'),'execution_mode':'next_open','defensive_asset':'sh511260'},auto=True)
+        quotes={s:{**q,'quote_time':at.isoformat(),'open':q['price']*.99} for s,q in self.quotes().items()}
+        sig=self.signal('sh512890',0)
+        p=self.plan(a,q=quotes,signal=sig,at=at)
+        self.assertTrue(p['can_execute'],p['reasons'])
+        self.assertEqual(p['orders'][0]['price'],quotes['sh511260']['open'])
+        self.assertFalse(self.plan(a,q=quotes,signal=sig,at=AT)['can_execute'])
+        quotes['sh511260']['open']=0
+        self.assertFalse(self.plan(a,q=quotes,signal=sig,at=at)['can_execute'])
+
+    def test_open_and_tail_accounts_schedule_independently(self):
+        a=self.store.create('开盘调度',100000,'dividend_erp',
+            {**defaults('dividend_erp'),'execution_mode':'next_open','defensive_asset':'sh511260'},auto=True)
+        at=AT.replace(hour=9,minute=31)
+        quotes={s:{**q,'quote_time':at.isoformat(),'open':q['price']} for s,q in self.quotes().items()}
+        with patch('services.simulation_service.now',return_value=at), patch('services.simulation_service.fetch_quotes',return_value=quotes), patch('services.simulation_service.strategy_signal',return_value=self.signal('sh512890',0)):
+            worker_tick(self.store,at)
+            worker_tick(self.store,at)
+        trades=self.store.entries(a['id'],'trade')
+        self.assertEqual(len(trades),1)
+        self.assertEqual(trades[0]['source'],'次日开盘自动')
+        self.assertFalse(market_status(at)['ready'])
+        self.assertFalse(market_status(at.replace(minute=35),'next_open')['ready'])
+
+    def test_next_open_signal_is_previous_close_not_intraday_estimate(self):
+        import pandas as pd
+        from services.simulation_service import strategy_signal
+        a=self.store.create('确认信号',100000,'dividend_erp',
+            {**defaults('dividend_erp'),'execution_mode':'next_open'})
+        history=pd.DataFrame({'close':[1.0]*60,'pe':[10.0]*60,'rate_10y':[2.0]*60,'erp':[8.0]*60,'erp_pct':[.3]*60},index=pd.bdate_range(end='2026-10-15',periods=60))
+        with patch('strategies.dividend_lowvol_swing_backtest.load_or_sync_data',return_value=history), patch('strategies.dividend_lowvol_swing_backtest.compute_indicators',side_effect=lambda x:x):
+            first=strategy_signal(a,self.quotes(sh512890=1.0),AT)
+            second=strategy_signal(a,self.quotes(sh512890=2.0),AT)
+        self.assertEqual(first['erp_pct'],.3)
+        self.assertEqual(first['weight'],.5)
+        self.assertEqual(first,second)
+
+    def test_compound_rotation_account_creation_and_plan(self):
+        from services.simulation_service import previous_session
+        at = AT.replace(hour=9, minute=31)
+        a = self.store.create('复合账户', 100000, 'compound_rotation', defaults('compound_rotation'))
+        self.assertEqual(a['parameters']['tech_symbol'], 'sz159915')
+        self.assertEqual(a['parameters']['div_symbol'], 'sh512890')
+        self.assertEqual(a['parameters']['bond_symbol'], 'sh511260')
+        quotes = {
+            'sz159915': {'price': 2.6, 'open': 2.6, 'prev_close': 2.7, 'quote_time': at.isoformat()},
+            'sh512890': {'price': 1.2, 'open': 1.2, 'prev_close': 1.21, 'quote_time': at.isoformat()},
+            'sh511260': {'price': 135.0, 'open': 135.0, 'prev_close': 135.0, 'quote_time': at.isoformat()}
+        }
+        sig = {
+            'valid': True, 'target_symbol': 'sh511260', 'weight': 1.0,
+            'weights': {'sz159915': 0.0, 'sh512890': 0.0, 'sh511260': 1.0},
+            'historical_asof': previous_session(at.date()), 'description': '测试'
+        }
+        p = self.plan(a, q=quotes, signal=sig, at=at)
+        self.assertEqual(len(p['orders']), 1)
+        self.assertEqual(p['orders'][0]['symbol'], 'sh511260')
+        self.assertTrue(p['can_execute'])
+
     def test_default_manual_and_unique_name(self):
         a = self.account()
         self.assertFalse(a["auto_trade"])

@@ -91,7 +91,41 @@ def fetch_realtime_quotes(symbols=["sz159915", "sh512890"]):
             }
 
     except Exception as e:
-        print(f"[-] 抓取实时行情失败: {e}")
+        print(f"[-] 新浪实时行情失败，切换腾讯备用源: {e}")
+
+    # 新浪接口在部分网络环境下会超时；腾讯接口字段稳定，作为同一时点的备用源。
+    if not results:
+        try:
+            backup = session.get(
+                "https://qt.gtimg.cn/q=" + ",".join(formatted_codes),
+                headers={"Referer": "https://gu.qq.com"}, timeout=5,
+            )
+            backup.raise_for_status()
+            for line in backup.text.split(";"):
+                if '="' not in line:
+                    continue
+                left, right = line.split('="', 1)
+                code = left.replace("v_", "").strip().lower()
+                parts = right.rstrip('"').split("~")
+                if len(parts) < 31 or not parts[3]:
+                    continue
+                price = float(parts[3])
+                prev_close = float(parts[4]) if parts[4] else price
+                quote_raw = parts[30]
+                quote_dt = datetime.datetime.strptime(quote_raw, "%Y%m%d%H%M%S").replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+                results[code] = {
+                    "symbol": code, "name": parts[1], "price": price,
+                    "prev_close": prev_close, "open": float(parts[5] or price),
+                    "high": float(parts[33] or price) if len(parts) > 33 else price,
+                    "low": float(parts[34] or price) if len(parts) > 34 else price,
+                    "bid1": float(parts[9] or price), "ask1": float(parts[19] or price),
+                    "quote_time": quote_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    "quote_dt": quote_dt, "age_seconds": int((now - quote_dt).total_seconds()),
+                    "chg_pct": ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0,
+                    "is_trading": price > 0,
+                }
+        except Exception as backup_error:
+            print(f"[-] 腾讯实时行情也失败: {backup_error}")
 
     return results
 

@@ -11,8 +11,10 @@ from services.simulation_store import AccountError, ROOT, SHANGHAI, now, timesta
 ASSETS = {
     "sh512890": "红利低波 ETF", "sh511260": "十年国债 ETF", "sh511010": "国债 ETF",
     "sz159915": "创业板 ETF", "sh588380": "双创50 ETF", "sh588000": "科创50 ETF",
+    "sh510880": "红利 ETF", "sh511090": "三十年国债 ETF",
+    "sh510300": "沪深300 ETF", "sh510500": "中证500 ETF",
 }
-T_ZERO = {"sh511010", "sh511260"}
+T_ZERO = {"sh511010", "sh511260", "sh511090"}
 QUOTE_MAX_AGE = 90
 
 
@@ -33,17 +35,19 @@ def is_session(day):
     return not any(start <= day.isoformat() <= end for start, end in calendar["closed_ranges"])
 
 
-def market_status(at=None):
+def market_status(at=None, mode="tail"):
     at = local_time(at)
     trading = is_session(at.date())
-    inside = dt.time(14, 45) <= at.time().replace(tzinfo=None) < dt.time(14, 56)
+    opening = mode == "next_open"
+    window = "09:30–09:35（使用当日开盘价，错过不补单）" if opening else "14:45–14:55"
+    inside = (dt.time(9,30) <= at.time().replace(tzinfo=None) < dt.time(9,35)) if opening else (dt.time(14,45) <= at.time().replace(tzinfo=None) < dt.time(14,56))
     if trading is None:
         return {"ready": False, "label": "交易日历待更新", "reason": f"缺少 {at.year} 年交易所日历，暂停执行。"}
     if not trading:
         return {"ready": False, "label": "休市", "reason": "当前为交易所休市日，仅可查看信号与持仓。"}
     if not inside:
-        return {"ready": False, "label": "盘中预览" if at.hour < 15 else "盘后复核", "reason": "模拟执行窗口为交易日 14:45–14:55。"}
-    return {"ready": True, "label": "尾盘执行窗口", "reason": "尾盘窗口内，执行前仍需校验行情与持仓。"}
+        return {"ready": False, "label": "盘中预览" if at.hour < 15 else "盘后复核", "reason": f"模拟执行窗口为交易日 {window}。"}
+    return {"ready": True, "label": "早盘执行窗口" if opening else "尾盘执行窗口", "reason": "执行前仍需校验行情与持仓。"}
 
 
 def previous_session(day):
@@ -56,7 +60,10 @@ def previous_session(day):
 
 def symbols_for(account):
     p = account["parameters"]
-    symbols = {p["tech_symbol"], p["def_symbol"]} if account["strategy_type"] == "rotation" else {"sh512890", "sh511260"}
+    if account["strategy_type"] == "compound_rotation":
+        symbols = {p["tech_symbol"], p.get("div_symbol", "sh512890"), p.get("bond_symbol", p.get("def_symbol", "sh511260"))}
+    else:
+        symbols = {p["tech_symbol"], p["def_symbol"]} if account["strategy_type"] == "rotation" else {"sh512890", "sh511260"}
     return sorted(symbols | {p["symbol"] for p in account["positions"] if p["shares"]})
 
 
@@ -112,9 +119,35 @@ def portfolio(account, quotes):
 
 def strategy_signal(account, quotes, at):
     p = account["parameters"]
+    if account["strategy_type"] == "compound_rotation":
+        from strategies.signals import compute_compound_rotation_signal
+        signal_quotes = quotes
+        confirmed = p.get("execution_mode") == "next_open"
+        if confirmed:
+            signal_quotes = {symbol: {**quote, "price": quote.get("prev_close") or quote.get("price")} for symbol, quote in quotes.items()}
+        result = compute_compound_rotation_signal(
+            tech_symbol=p["tech_symbol"],
+            div_symbol=p.get("div_symbol", "sh512890"),
+            bond_symbol=p.get("bond_symbol", p.get("def_symbol", "sh511260")),
+            lookback_window=int(p["lookback_window"]),
+            use_bias_exit=bool(p.get("use_bias_exit", True)),
+            use_trend_filter=bool(p.get("use_trend_filter", True)),
+            th_overheat=float(p.get("th_overheat", 0.20)),
+            th_neutral=float(p.get("th_neutral", 0.35)),
+            live_quotes=signal_quotes,
+            as_of=at,
+            confirmed=confirmed
+        )
+        if not result.get("valid"):
+            raise AccountError(result.get("error", "复合轮动信号不可用。"))
+        return result
     if account["strategy_type"] == "rotation":
         from strategies.signals import compute_rotation_signal
-        result = compute_rotation_signal(p["tech_symbol"], p["def_symbol"], int(p["lookback_window"]), live_quotes=quotes, as_of=at)
+        signal_quotes = quotes
+        # 次日开盘模式必须锁定前一交易日收盘信号，不能用今日盘中价格提前改变目标。
+        if p.get("execution_mode") == "next_open":
+            signal_quotes = {symbol: {**quote, "price": quote.get("prev_close")} for symbol, quote in quotes.items()}
+        result = compute_rotation_signal(p["tech_symbol"], p["def_symbol"], int(p["lookback_window"]), live_quotes=signal_quotes, as_of=at)
         if not result.get("valid"):
             raise AccountError(result.get("error", "轮动信号不可用。"))
         return {**result, "weight": 1.0, "description": "进攻动量和均线条件全部成立。" if result["is_attack"] else "进攻条件未全部成立，目标切换至防守标的。"}
@@ -126,12 +159,13 @@ def strategy_signal(account, quotes, at):
         raise AccountError("ERP 历史估值数据不足 60 个交易日。")
     baseline = raw.iloc[-1]
     price = positive_price(quotes.get("sh512890", {}))
-    pe = float(baseline["pe"]) * price / float(baseline["close"])
+    confirmed = p.get("execution_mode") == "next_open"
+    pe = float(baseline["pe"]) if confirmed else float(baseline["pe"]) * price / float(baseline["close"])
     rate = float(baseline["rate_10y"])
     if pe <= 0 or not math.isfinite(pe) or not math.isfinite(rate):
         raise AccountError("估值或国债收益率数据无效。")
     erp = 100.0 / pe - rate
-    percentile = float(pd.concat([raw["erp"].iloc[-250:], pd.Series([erp])]).rank(pct=True).iloc[-1])
+    percentile = float(baseline["erp_pct"]) if confirmed else float(pd.concat([raw["erp"].iloc[-250:], pd.Series([erp])]).rank(pct=True).iloc[-1])
     if percentile <= p["threshold_low"]:
         weight, band = p["weight_low"], "高估区间"
     elif percentile <= p["threshold_high"]:
@@ -155,6 +189,8 @@ def allocation(account, signal, quotes, at):
     port = portfolio(account, quotes)
     if port["total"] is None:
         raise AccountError("持仓估值不完整，暂不能生成数量清单。")
+    if account['strategy_type'] == 'compound_rotation':
+        return allocate_multi_asset(account, signal.get('weights', {}), quotes, at, port)
     if account['strategy_type'] == 'dividend_erp' and account['parameters'].get('defensive_asset') == 'sh511260':
         return allocate_erp_bond(account, signal, quotes, at, port)
     target = signal["target_symbol"]
@@ -197,42 +233,51 @@ def allocation(account, signal, quotes, at):
     return orders, blocks, cash
 
 
-def allocate_erp_bond(account, signal, quotes, at, port):
-    """Plan both ETF legs; keep lot-size remainders as cash and sell before buying."""
-    weights = {'sh512890': float(signal['weight']), 'sh511260': 1-float(signal['weight'])}
+def allocate_multi_asset(account, weights, quotes, at, port):
+    """Plan multi-asset target weights; keep lot-size remainders as cash and sell before buying."""
     rate = account['fee_rate']
-    prices = {s: positive_price(quotes.get(s, {})) for s in weights}
+    active_symbols = [s for s, w in weights.items() if w > 0]
+    prices = {s: positive_price(quotes.get(s, {})) for s in active_symbols}
+    for p in account['positions']:
+        if p['symbol'] not in prices:
+            prices[p['symbol']] = positive_price(quotes.get(p['symbol'], {}))
     if any(v is None for v in prices.values()):
-        raise AccountError('红利或国债 ETF 行情缺失，暂不能生成调仓清单。')
-    wanted = {s: math.floor(port['total']*w/(prices[s]*100))*100 for s, w in weights.items()}
+        raise AccountError('相关标的行情缺失，暂不能生成调仓清单。')
+    wanted = {s: math.floor(port['total'] * float(w) / (prices[s] * 100)) * 100 for s, w in weights.items() if prices.get(s) and w > 0}
     cash, orders, blocks = account['cash_available'], [], []
     held = {p['symbol']: p['shares'] for p in account['positions']}
     for p in account['positions']:
-        qty = max(0, p['shares']-wanted.get(p['symbol'], 0))
+        qty = max(0, p['shares'] - wanted.get(p['symbol'], 0))
         if not qty:
             continue
-        price = positive_price(quotes.get(p['symbol'], {}))
-        if price is None:
-            raise AccountError('现有持仓行情缺失，暂不能执行。')
+        price = prices[p['symbol']]
         available = sellable(p, at.date().isoformat())
         if available < qty:
             blocks.append(f"{ASSETS.get(p['symbol'], p['symbol'])}需卖 {qty:,} 份，可卖仅 {available:,} 份（T+1 限制）")
-        gross = round(qty*price, 2); fee = round(gross*rate, 2)
-        orders.append(dict(action='卖出', symbol=p['symbol'], name=ASSETS.get(p['symbol'], p['symbol']), shares=qty, price=price, amount=gross, fee=fee, status='先卖出' if available>=qty else 'T+1 受限'))
-        cash = round(cash+gross-fee, 2)
+        gross = round(qty * price, 2)
+        fee = round(gross * rate, 2)
+        orders.append(dict(action='卖出', symbol=p['symbol'], name=ASSETS.get(p['symbol'], p['symbol']), shares=qty, price=price, amount=gross, fee=fee, status='先卖出' if available >= qty else 'T+1 受限'))
+        cash = round(cash + gross - fee, 2)
         held[p['symbol']] -= qty
     for symbol, goal in wanted.items():
         price = prices[symbol]
-        qty = min(max(0, goal-held.get(symbol, 0)), max(0, math.floor(cash/(price*(1+rate)*100))*100))
-        while qty > 0 and round(qty*price, 2)+round(round(qty*price, 2)*rate, 2)>cash:
+        qty = min(max(0, goal - held.get(symbol, 0)), max(0, math.floor(cash / (price * (1 + rate) * 100)) * 100))
+        while qty > 0 and round(qty * price, 2) + round(round(qty * price, 2) * rate, 2) > cash:
             qty -= 100
         if qty:
-            gross = round(qty*price, 2); fee = round(gross*rate, 2)
+            gross = round(qty * price, 2)
+            fee = round(gross * rate, 2)
             orders.append(dict(action='买入', symbol=symbol, name=ASSETS.get(symbol, symbol), shares=qty, price=price, amount=gross, fee=fee, status='调仓资金买入'))
-            cash = round(cash-gross-fee, 2)
-    if not account['positions'] and not orders and any(weights.values()):
+            cash = round(cash - gross - fee, 2)
+    if not account['positions'] and not orders and any(w > 0 for w in weights.values()):
         blocks.append('可用资金不足一手，无法完成首次建仓；请先入金。')
     return orders, blocks, cash
+
+
+def allocate_erp_bond(account, signal, quotes, at, port):
+    """Plan both ETF legs; keep lot-size remainders as cash and sell before buying."""
+    weights = {'sh512890': float(signal['weight']), 'sh511260': 1-float(signal['weight'])}
+    return allocate_multi_asset(account, weights, quotes, at, port)
 
 
 def build_plan(store, account_id, quotes=None, at=None, signal=None):
@@ -240,7 +285,8 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
     a = store.get(account_id)
     symbols = symbols_for(a)
     quotes = fetch_quotes(symbols) if quotes is None else quotes
-    status = market_status(at)
+    mode = a["parameters"].get("execution_mode", "tail")
+    status = market_status(at, mode)
     reasons = ([] if a["running"] else ["账户已暂停运行。"])
     if not status["ready"]:
         reasons.append(status["reason"])
@@ -259,7 +305,12 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
             raise AccountError(signal.get("error", "策略信号无效。"))
         if signal.get("historical_asof") != previous_session(at.date()):
             reasons.append(f"历史指标截至 {signal.get('historical_asof', '未知')}，未覆盖前一交易日，暂不能执行。")
-        orders, blocks, remaining = allocation(a, signal, quotes, at)
+        execution_quotes = quotes
+        if mode == "next_open":
+            if any(positive_price({'price': quotes.get(s, {}).get('open')}) is None or not str(quotes.get(s, {}).get('quote_time', '')).startswith(at.date().isoformat()) for s in symbols):
+                raise AccountError('当日开盘价尚未发布或日期不符，禁止使用昨收价替代。')
+            execution_quotes = {s: {**q, 'price': q.get('open')} for s, q in quotes.items()}
+        orders, blocks, remaining = allocation(a, signal, execution_quotes, at)
         reasons.extend(blocks)
     except Exception as exc:
         error = str(exc) or "信号计算失败，请检查行情数据。"
@@ -298,7 +349,7 @@ def execute_plan(store, account_id, expected_plan_id, request_id, automatic=Fals
         a = store.get(account_id, conn)
         if real_clock:
             committed_at = local_time()
-            status = market_status(committed_at)
+            status = market_status(committed_at, a["parameters"].get("execution_mode", "tail"))
             timing = quote_issues({s: {"price": 1, "quote_time": t} for s, t in plan["quote_times"].items()}, list(plan["quote_times"]), committed_at)
             if not status["ready"] or timing:
                 raise AccountError("执行时窗口或行情时效发生变化，请刷新清单。")
@@ -306,7 +357,7 @@ def execute_plan(store, account_id, expected_plan_id, request_id, automatic=Fals
             raise AccountError("账户配置已变化或自动执行已关闭，请重新核对。")
         positions = copy.deepcopy(a["positions"])
         cash = a["cash_available"]
-        source = "尾盘自动" if automatic else "手动执行"
+        source = ("次日开盘自动" if a["parameters"].get("execution_mode") == "next_open" else "尾盘自动") if automatic else "手动执行"
         for order in plan["orders"]:
             held = next((p for p in positions if p["symbol"] == order["symbol"]), None)
             if order["action"] == "卖出":
@@ -347,10 +398,18 @@ def worker_tick(store, at=None):
     status = market_status(at)
     accounts = [a for a in store.list_accounts() if a["auto_trade"] and a["running"]]
     report = {"heartbeat": at.isoformat(), "status": "运行中", "message": status["reason"], "accounts": len(accounts)}
-    if status["ready"] and accounts:
-        symbols = sorted({s for a in accounts for s in symbols_for(a)})
+    if is_session(at.date()) and at.time().replace(tzinfo=None) >= dt.time(9,35):
+        for account in accounts:
+            if account['parameters'].get('execution_mode') == 'next_open':
+                key = f"auto:{account['id']}:{at.date().isoformat()}:{account['settings_version']}"
+                if not store.receipt(key):
+                    store.record_event(account['id'], '早盘窗口已结束', '今日未完成开盘模拟执行；不在尾盘补单，等待下一交易日有效窗口。', '受阻', 'missed:'+key)
+    due = [a for a in accounts if market_status(at, a["parameters"].get("execution_mode", "tail"))["ready"]]
+    report["message"] = "按账户执行时点检查：次日开盘 09:30–09:35；尾盘 14:45–14:55。"
+    if due:
+        symbols = sorted({s for a in due for s in symbols_for(a)})
         quotes = fetch_quotes(symbols)
-        for a in accounts:
+        for a in due:
             key = f"auto:{a['id']}:{at.date().isoformat()}:{a['settings_version']}"
             if store.receipt(key):
                 continue

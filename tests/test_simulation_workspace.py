@@ -45,6 +45,18 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(account['parameters']['defensive_asset'],'sh511260')
         self.assertEqual(frontend_config(account)['defense'],'sh511260')
 
+    def test_realtime_observation_does_not_replace_execution_signal(self):
+        a=self.store.create('双信号',100000,'dividend_erp',{**defaults('dividend_erp'),'execution_mode':'next_open'})
+        quotes={symbol:{'price':100.,'open':100.,'quote_time':now().isoformat()} for symbol in ['sh588380','sh511010','sh512890','sh511260']}
+        def signal(strategy,params,*args):
+            return {'valid':True,'target_symbol':'sh512890','weight':0.,'erp':10.,'erp_pct':.068 if params.get('execution_mode')=='next_open' else .12,'historical_asof':'2026-10-19','band':'测试'}
+        with patch('ui.simulation_component.live_quotes',return_value=quotes),patch('ui.simulation_component.cached_signal',side_effect=signal):
+            row=next(r for r in snapshot(self.store,a['id'])['accounts'] if r['id']==a['id'])
+        self.assertEqual(row['observation']['live']['erp_pct'],.12)
+        self.assertEqual(row['observation']['confirmed']['erp_pct'],.068)
+        self.assertEqual(row['plan']['signal']['erp_pct'],.068)
+        self.assertEqual(self.store.get(a['id'])['parameters']['execution_mode'],'next_open')
+
     def test_funds_retry_and_stale_drawer_revision(self):
         self.command('funds',revision=1,amount=25000,withdraw=False)
         self.command('funds',revision=1,amount=25000,withdraw=False)

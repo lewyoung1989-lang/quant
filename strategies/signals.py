@@ -181,3 +181,192 @@ if __name__ == "__main__":
     print(f"目标标的: {sig['target_symbol']} ({'🚀 全仓进攻' if sig['is_attack'] else '🛡️ 全仓防守'})")
     for k, v in sig['conditions'].items():
         print(f"  [{'✓' if v['passed'] else '✗'}] {v['name']}")
+
+
+def compute_compound_rotation_signal(
+    tech_symbol="sz159915",
+    div_symbol="sh512890",
+    bond_symbol="sh511260",
+    lookback_window=20,
+    use_bias_exit=True,
+    tier_thresholds=(0.15, 0.18, 0.21, 0.25),
+    tier_weights=(1.00, 0.75, 0.50, 0.30, 0.10),
+    use_trend_filter=True,
+    trend_filter_window=60,
+    th_overheat=0.20,
+    th_neutral=0.35,
+    live_quotes=None,
+    as_of=None,
+    confirmed=False
+):
+    """
+    计算复合攻守轮动策略的实时或确认信号：
+    1. 进攻判定：进攻标的绝对动量 > 0 且站上均线（若开启 MA60 则同时站上 MA60）且动量强于防守底仓标的；
+    2. 超买止盈：持有进攻标的时，若偏离率 BIAS 处于超买区，按五档阶梯压降仓位；
+    3. 全局防守：释放的防守仓位由 ERP 股债利差模型在防守底仓（如红利低波）与避险防守（如十年国债）间动态分配。
+    """
+    if live_quotes is None:
+        live_quotes = fetch_realtime_quotes([tech_symbol, div_symbol, bond_symbol])
+
+    tech_quote = live_quotes.get(tech_symbol.lower(), {})
+    div_quote = live_quotes.get(div_symbol.lower(), {})
+    bond_quote = live_quotes.get(bond_symbol.lower(), {})
+
+    now = as_of or datetime.datetime.now(ZoneInfo("Asia/Shanghai"))
+    warmup = max(60, lookback_window + 10, trend_filter_window + 10 if use_trend_filter else 0)
+
+    tech_df = fetch_sina_stock_kline(tech_symbol, datalen=warmup + 30)
+    div_df = fetch_sina_stock_kline(div_symbol, datalen=warmup + 30)
+    bond_df = fetch_sina_stock_kline(bond_symbol, datalen=warmup + 30)
+
+    if tech_df.empty or div_df.empty or bond_df.empty:
+        return {"valid": False, "error": "历史日线数据未取得，请更新数据后重试。"}
+
+    today_str = now.date().isoformat()
+    hist_tech = tech_df[tech_df.index.strftime("%Y-%m-%d") < today_str]
+    hist_div = div_df[div_df.index.strftime("%Y-%m-%d") < today_str]
+    hist_bond = bond_df[bond_df.index.strftime("%Y-%m-%d") < today_str]
+
+    common_hist = hist_tech.index.intersection(hist_div.index).intersection(hist_bond.index).sort_values()
+    if len(common_hist) < max(lookback_window + 2, trend_filter_window + 2 if use_trend_filter else 0):
+        return {"valid": False, "error": "历史重合交易日不足，暂无法计算复合轮动信号。"}
+
+    # 确定价格序列
+    if confirmed:
+        tech_close_series = hist_tech.loc[common_hist, "close"].astype(float)
+        div_close_series = hist_div.loc[common_hist, "close"].astype(float)
+        tech_price = float(tech_close_series.iloc[-1])
+        div_price = float(div_close_series.iloc[-1])
+        bond_price = float(hist_bond.loc[common_hist, "close"].iloc[-1])
+    else:
+        tech_price = float(tech_quote.get("price") or hist_tech.loc[common_hist, "close"].iloc[-1])
+        div_price = float(div_quote.get("price") or hist_div.loc[common_hist, "close"].iloc[-1])
+        bond_price = float(bond_quote.get("price") or hist_bond.loc[common_hist, "close"].iloc[-1])
+        tech_close_series = pd.concat([hist_tech.loc[common_hist, "close"].astype(float), pd.Series([tech_price], index=[now.date()])])
+        div_close_series = pd.concat([hist_div.loc[common_hist, "close"].astype(float), pd.Series([div_price], index=[now.date()])])
+
+    # 1. 动量与均线
+    tech_base = float(tech_close_series.iloc[-1 - lookback_window])
+    tech_mom = (tech_price - tech_base) / tech_base
+    div_base = float(div_close_series.iloc[-1 - lookback_window])
+    div_mom = (div_price - div_base) / div_base
+    tech_ma = float(tech_close_series.iloc[-lookback_window:].mean())
+    tech_bias = (tech_price - tech_ma) / tech_ma
+
+    if use_trend_filter and trend_filter_window > 0:
+        tech_ma_trend = float(tech_close_series.iloc[-trend_filter_window:].mean())
+        cond_trend = tech_price > tech_ma_trend
+    else:
+        tech_ma_trend = tech_ma
+        cond_trend = True
+
+    cond_mom = tech_mom > 0
+    cond_ma = tech_price > tech_ma
+    cond_rel = tech_mom > div_mom
+    is_attack = bool(cond_mom and cond_ma and cond_trend and cond_rel)
+
+    # 2. 进攻仓位与超买五档止盈
+    if is_attack:
+        if use_bias_exit:
+            t1, t2, t3, t4 = tier_thresholds
+            w0, w1, w2, w3, w4 = tier_weights
+            if tech_bias < t1:
+                w_attack = w0
+            elif tech_bias < t2:
+                w_attack = w1
+            elif tech_bias < t3:
+                w_attack = w2
+            elif tech_bias < t4:
+                w_attack = w3
+            else:
+                w_attack = w4
+        else:
+            w_attack = 1.00
+    else:
+        w_attack = 0.00
+
+    w_def = round(1.00 - w_attack, 4)
+
+    # 3. ERP 股债利差估值接管防守仓位
+    from strategies.dividend_lowvol_swing_backtest import compute_indicators, load_or_sync_data
+    raw = compute_indicators(load_or_sync_data())
+    raw = raw[raw.index.strftime("%Y-%m-%d") < now.date().isoformat()].dropna(subset=["close", "pe", "rate_10y", "erp"])
+    if len(raw) < 60:
+        return {"valid": False, "error": "ERP 历史数据不足 60 个交易日。"}
+
+    baseline = raw.iloc[-1]
+    pe = float(baseline["pe"]) if confirmed else float(baseline["pe"]) * div_price / float(baseline["close"])
+    rate_10y = float(baseline["rate_10y"])
+    if pe <= 0 or not math.isfinite(pe) or not math.isfinite(rate_10y):
+        return {"valid": False, "error": "估值或国债收益率数据无效。"}
+    erp = 100.0 / pe - rate_10y
+    percentile = float(baseline["erp_pct"]) if confirmed else float(pd.concat([raw["erp"].iloc[-250:], pd.Series([erp])]).rank(pct=True).iloc[-1])
+
+    if percentile <= th_overheat:
+        erp_w = 0.00
+        erp_band = "过热避险带"
+    elif percentile <= th_neutral:
+        erp_w = 0.50
+        erp_band = "常态观察带"
+    else:
+        erp_w = 1.00
+        erp_band = "低估性价比带"
+
+    tw_tech = round(w_attack, 4)
+    tw_div = round(w_def * erp_w, 4)
+    tw_bond = round(w_def * (1.00 - erp_w), 4)
+
+    weights = {tech_symbol: tw_tech, div_symbol: tw_div, bond_symbol: tw_bond}
+
+    # 状态文字描述
+    if is_attack:
+        if w_attack == 1.00:
+            target_symbol = tech_symbol
+            description = f"动量突破且站上生命线，未触发超买，目标全仓进攻持有 {tech_quote.get('name', tech_symbol)}。"
+        else:
+            target_symbol = tech_symbol
+            pct_atk = int(round(tw_tech * 100))
+            pct_def = int(round(w_def * 100))
+            description = f"进攻标的触发 BIAS 极值超买 ({tech_bias*100:.1f}%)，阶梯降速至 {pct_atk}%；释放防守资金 {pct_def}% 由 ERP({percentile*100:.1f}%) 接管（红利 {int(tw_div*100)}% + 国债 {int(tw_bond*100)}%）。"
+    else:
+        if erp_w == 1.00:
+            target_symbol = div_symbol
+            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}，目标配置 100% {div_quote.get('name', div_symbol)}。"
+        elif erp_w == 0.50:
+            target_symbol = div_symbol
+            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}，目标均衡配置 50% {div_quote.get('name', div_symbol)} + 50% {bond_quote.get('name', bond_symbol)}。"
+        else:
+            target_symbol = bond_symbol
+            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}，目标避险配置 100% {bond_quote.get('name', bond_symbol)}。"
+
+    return {
+        "valid": True,
+        "historical_asof": common_hist[-1].strftime("%Y-%m-%d"),
+        "target_symbol": target_symbol,
+        "weight": 1.0,
+        "weights": weights,
+        "is_attack": is_attack,
+        "tech_bias": tech_bias,
+        "tech_ma": tech_ma,
+        "tech_ma_trend": tech_ma_trend,
+        "tech_mom": tech_mom,
+        "div_mom": div_mom,
+        "erp": erp,
+        "erp_pct": percentile,
+        "erp_band": erp_band,
+        "erp_w": erp_w,
+        "description": description,
+        "tech": {
+            "symbol": tech_symbol, "name": tech_quote.get("name", "进攻标的"),
+            "price": tech_price, "mom": tech_mom, "ma": tech_ma, "bias": tech_bias,
+            "weight": tw_tech
+        },
+        "div": {
+            "symbol": div_symbol, "name": div_quote.get("name", "防守底仓"),
+            "price": div_price, "mom": div_mom, "weight": tw_div
+        },
+        "bond": {
+            "symbol": bond_symbol, "name": bond_quote.get("name", "避险防守"),
+            "price": bond_price, "weight": tw_bond
+        }
+    }
