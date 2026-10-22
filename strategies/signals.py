@@ -307,50 +307,50 @@ def compute_compound_rotation_signal(
     th_mid = (th_overheat + th_neutral) / 2.0
     delta = float(erp_delta)
     if current_erp_w is not None:
-        # 映射到四档最近档位 (0.00, 0.30, 0.70, 1.00)
-        if current_erp_w <= 0.15:
+        # 映射到四档最近档位 (0.00, 0.35, 0.65, 1.00)
+        if current_erp_w <= 0.175:
             cur_tier = 0.00
         elif current_erp_w <= 0.50:
-            cur_tier = 0.30
-        elif current_erp_w <= 0.85:
-            cur_tier = 0.70
+            cur_tier = 0.35
+        elif current_erp_w <= 0.825:
+            cur_tier = 0.65
         else:
             cur_tier = 1.00
 
         # 不对称保护性防抖状态转移 (2.5% 防抖)
         if cur_tier == 1.00:
             if percentile <= (th_neutral - delta):
-                cur_tier = 0.70
-        elif cur_tier == 0.70:
+                cur_tier = 0.65
+        elif cur_tier == 0.65:
             if percentile >= th_neutral:  # 深度价值直接打满，零延迟抄底
                 cur_tier = 1.00
             elif percentile <= (th_mid - delta):
-                cur_tier = 0.30
-        elif cur_tier == 0.30:
+                cur_tier = 0.35
+        elif cur_tier == 0.35:
             if percentile >= (th_mid + delta):
-                cur_tier = 0.70
+                cur_tier = 0.65
             elif percentile <= th_overheat:  # 极值过热直接清仓，零延迟避险
                 cur_tier = 0.00
         elif cur_tier == 0.00:
             if percentile >= (th_overheat + delta):  # 防假突破，有效确认后才建底仓
-                cur_tier = 0.30
+                cur_tier = 0.35
         erp_w = cur_tier
     else:
         # 无前序持仓状态时采用四档静态切分
         if percentile <= th_overheat:
             erp_w = 0.00
         elif percentile <= th_mid:
-            erp_w = 0.30
+            erp_w = 0.35
         elif percentile <= th_neutral:
-            erp_w = 0.70
+            erp_w = 0.65
         else:
             erp_w = 1.00
 
     if erp_w == 0.00:
         erp_band = "过热避险带"
-    elif erp_w == 0.30:
+    elif erp_w == 0.35:
         erp_band = "初级试探底仓带"
-    elif erp_w == 0.70:
+    elif erp_w == 0.65:
         erp_band = "稳健增配带"
     else:
         erp_band = "低估性价比带"
@@ -375,12 +375,12 @@ def compute_compound_rotation_signal(
         if erp_w == 1.00:
             target_symbol = div_symbol
             description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}，目标配置 100% {div_quote.get('name', div_symbol)}。"
-        elif erp_w == 0.70:
+        elif erp_w == 0.65:
             target_symbol = div_symbol
-            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}（2.5%防抖），目标配置 70% {div_quote.get('name', div_symbol)} + 30% {bond_quote.get('name', bond_symbol)}。"
-        elif erp_w == 0.30:
+            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}（2.5%防抖），目标配置 65% {div_quote.get('name', div_symbol)} + 35% {bond_quote.get('name', bond_symbol)}。"
+        elif erp_w == 0.35:
             target_symbol = bond_symbol if tw_bond > tw_div else div_symbol
-            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}（2.5%防抖），目标配置 30% {div_quote.get('name', div_symbol)} + 70% {bond_quote.get('name', bond_symbol)}。"
+            description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}（2.5%防抖），目标配置 35% {div_quote.get('name', div_symbol)} + 65% {bond_quote.get('name', bond_symbol)}。"
         elif erp_w == 0.50:
             target_symbol = div_symbol
             description = f"动量未达进攻条件，全额转入防守；ERP 分位 {percentile*100:.1f}% 处于{erp_band}，目标均衡配置 50% {div_quote.get('name', div_symbol)} + 50% {bond_quote.get('name', bond_symbol)}。"

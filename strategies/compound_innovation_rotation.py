@@ -132,27 +132,27 @@ def run_compound_innovation_rotation(
             # 不对称保护性防抖状态转移 (2.5% 防抖)
             if cur_w == 1.00:
                 if p <= (th_neutral - delta):
-                    cur_w = 0.70
-            elif cur_w == 0.70:
+                    cur_w = 0.65
+            elif cur_w == 0.65:
                 if p >= th_neutral:  # 深度价值零延迟打满
                     cur_w = 1.00
                 elif p <= (th_mid - delta):
-                    cur_w = 0.30
-            elif cur_w == 0.30:
+                    cur_w = 0.35
+            elif cur_w == 0.35:
                 if p >= (th_mid + delta):
-                    cur_w = 0.70
+                    cur_w = 0.65
                 elif p <= th_overheat:  # 极值过热零延迟避险
                     cur_w = 0.00
             elif cur_w == 0.00:
                 if p >= (th_overheat + delta):  # 防假突破，确认后建仓
-                    cur_w = 0.30
+                    cur_w = 0.35
         else:
             if p <= th_overheat:
                 cur_w = 0.00
             elif p <= th_mid:
-                cur_w = 0.30
+                cur_w = 0.35
             elif p <= th_neutral:
-                cur_w = 0.70
+                cur_w = 0.65
             else:
                 cur_w = 1.00
         w_erp_list.append(cur_w)
@@ -214,12 +214,12 @@ def run_compound_innovation_rotation(
         else:
             if erp_w == 1.0:
                 state_str = f"防守【{div_name} 100%】🛡️"
-            elif erp_w == 0.7:
-                state_str = f"防守【{div_name} 70% + {bond_name} 30%】⚖️"
+            elif erp_w == 0.65:
+                state_str = f"防守【{div_name} 65% + {bond_name} 35%】⚖️"
             elif erp_w == 0.5:
                 state_str = f"防守【{div_name} 50% + {bond_name} 50%】⚖️"
-            elif erp_w == 0.3:
-                state_str = f"防守【{div_name} 30% + {bond_name} 70%】🛡️"
+            elif erp_w == 0.35:
+                state_str = f"防守【{div_name} 35% + {bond_name} 65%】🛡️"
             else:
                 state_str = f"防守【{bond_name} 100%】🔒"
 
