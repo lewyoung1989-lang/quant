@@ -97,7 +97,10 @@ def format_account_plan_markdown(account, plan, signal):
             lines.append(f"- {icon} **{action} {name} (`{sym}`)**：{shares:,} 份 @ ¥{price:.3f}（预估 ¥{amt:,.2f}）")
         lines.append(f"- **预估剩余现金**：¥{plan.get('remaining_cash', 0):,.2f}")
     else:
-        lines.append("\n**⚖️ 今日无需调仓**：持仓与策略目标完全吻合，继续耐心持有。")
+        if plan.get("error"):
+            lines.append(f"\n**⚠️ 调仓计划生成异常**：{plan.get('error')}")
+        else:
+            lines.append("\n**⚖️ 今日无需调仓**：持仓与策略目标完全吻合，继续耐心持有。")
 
     return "\n".join(lines)
 

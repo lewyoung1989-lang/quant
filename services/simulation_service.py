@@ -35,19 +35,31 @@ def is_session(day):
     return not any(start <= day.isoformat() <= end for start, end in calendar["closed_ranges"])
 
 
+def next_session(day):
+    for i in range(1, 25):
+        candidate = day + dt.timedelta(days=i)
+        if is_session(candidate):
+            return candidate.isoformat()
+    return None
+
+
 def market_status(at=None, mode="tail"):
     at = local_time(at)
     trading = is_session(at.date())
     opening = mode == "next_open"
     window = "09:30–09:35（使用当日开盘价，错过不补单）" if opening else "14:45–14:55"
     inside = (dt.time(9,30) <= at.time().replace(tzinfo=None) < dt.time(9,35)) if opening else (dt.time(14,45) <= at.time().replace(tzinfo=None) < dt.time(14,56))
+    next_day = next_session(at.date())
+    is_after = (trading and at.time().replace(tzinfo=None) >= dt.time(15, 0)) or (not trading)
     if trading is None:
-        return {"ready": False, "label": "交易日历待更新", "reason": f"缺少 {at.year} 年交易所日历，暂停执行。"}
+        return {"ready": False, "label": "交易日历待更新", "reason": f"缺少 {at.year} 年交易所日历，暂停执行。", "is_after_close": False, "next_session": next_day, "session_date": at.date().isoformat()}
     if not trading:
-        return {"ready": False, "label": "休市", "reason": "当前为交易所休市日，仅可查看信号与持仓。"}
+        return {"ready": False, "label": "休市", "reason": f"当前为休市日，已生成下一交易日（{next_day}）调仓计划。", "is_after_close": True, "next_session": next_day, "session_date": at.date().isoformat()}
     if not inside:
-        return {"ready": False, "label": "盘中预览" if at.hour < 15 else "盘后复核", "reason": f"模拟执行窗口为交易日 {window}。"}
-    return {"ready": True, "label": "早盘执行窗口" if opening else "尾盘执行窗口", "reason": "执行前仍需校验行情与持仓。"}
+        label = "盘中预览" if at.hour < 15 else "盘后复核"
+        reason = f"模拟执行窗口为交易日 {window}。" if at.hour < 15 else f"今日已收盘，模拟执行窗口为明日（{next_day}）{window}。"
+        return {"ready": False, "label": label, "reason": reason, "is_after_close": is_after, "next_session": next_day, "session_date": at.date().isoformat()}
+    return {"ready": True, "label": "早盘执行窗口" if opening else "尾盘执行窗口", "reason": "执行前仍需校验行情与持仓。", "is_after_close": False, "next_session": next_day, "session_date": at.date().isoformat()}
 
 
 def previous_session(day):
@@ -324,9 +336,17 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
             reasons.append(f"历史指标截至 {signal.get('historical_asof', '未知')}，未覆盖前一交易日，暂不能执行。")
         execution_quotes = quotes
         if mode == "next_open":
-            if any(positive_price({'price': quotes.get(s, {}).get('open')}) is None or not str(quotes.get(s, {}).get('quote_time', '')).startswith(at.date().isoformat()) for s in symbols):
-                raise AccountError('当日开盘价尚未发布或日期不符，禁止使用昨收价替代。')
-            execution_quotes = {s: {**q, 'price': q.get('open')} for s, q in quotes.items()}
+            has_today_open = all(
+                positive_price({'price': quotes.get(s, {}).get('open')}) is not None 
+                and str(quotes.get(s, {}).get('quote_time', '')).startswith(at.date().isoformat()) 
+                for s in symbols
+            )
+            if status["ready"]:
+                if not has_today_open:
+                    raise AccountError('当日开盘价尚未发布或日期不符，禁止使用昨收价替代。')
+                execution_quotes = {s: {**q, 'price': q.get('open')} for s, q in quotes.items()}
+            else:
+                execution_quotes = {s: {**q, 'price': q.get('open') if has_today_open else (q.get('prev_close') or q.get('price'))} for s, q in quotes.items()}
         orders, blocks, remaining = allocation(a, signal, execution_quotes, at)
         reasons.extend(blocks)
     except Exception as exc:
