@@ -63,29 +63,46 @@ def send_wxpusher(content: str, summary: str, app_token=None, uids=None):
 
 
 def format_account_plan_markdown(account, plan, signal):
-    """Format markdown message for an individual account plan."""
+    """Format markdown message for an individual account plan with two explicit sections."""
+    from services.simulation_service import ASSETS
     acc_name = account.get("name", account.get("id"))
     strat = account.get("strategy_type")
     strat_name = "复合攻守轮动" if strat == "compound_rotation" else ("红利低波 ERP" if strat == "dividend_erp" else "攻守动量轮动")
 
     lines = [f"### 📊 【{acc_name}】{strat_name}"]
 
-    # 估值与动量状态
+    # 第一部分：明日目标策略（由今日行情与估值数据决定）
+    lines.append("\n**🎯 第一部分：明日目标策略（量化研判）**")
     if signal:
         if "erp_pct" in signal:
             erp_val = signal.get("erp_pct", 0) * 100
             band = signal.get("erp_band", "正常")
             lines.append(f"- **ERP 估值分位**：`{erp_val:.1f}%` ({band})")
         if "weights" in signal and signal["weights"]:
-            w_str = " + ".join([f"{k} {int(round(v*100))}%" for k, v in signal["weights"].items() if v > 0])
-            lines.append(f"- **策略目标配比**：{w_str}")
+            w_str = " + ".join([f"{ASSETS.get(k, k)} {int(round(v*100))}%" for k, v in signal["weights"].items() if v > 0])
+            lines.append(f"- **策略目标配比**：**{w_str}**")
         elif "weight" in signal and signal.get("target_symbol"):
-            lines.append(f"- **策略目标标的**：`{signal['target_symbol']}` ({int(round(signal['weight']*100))}%)")
+            sym = signal["target_symbol"]
+            name = ASSETS.get(sym, sym)
+            w_pct = int(round(signal["weight"] * 100))
+            lines.append(f"- **策略目标配置**：**{name} (`{sym}`) {w_pct}%**")
+        if signal.get("description"):
+            lines.append(f"- **量化依据**：{signal['description']}")
+    else:
+        lines.append("- **状态**：等待定稿行情与估值数据。")
 
-    # 调仓清单
+    # 第二部分：执行交易操作（当前持仓与目标对比的实际动作）
+    lines.append("\n**📋 第二部分：执行交易操作（持仓对比）**")
+    pos = account.get("positions", [])
+    if pos:
+        pos_str = " + ".join([f"{ASSETS.get(p['symbol'], p['symbol'])} {p['shares']:,}份" for p in pos])
+    else:
+        pos_str = "空仓（100% 现金）"
+    lines.append(f"- **当前账户持仓**：{pos_str}")
+
     orders = plan.get("orders") or []
     if orders:
-        lines.append("\n**📋 执行调仓指令：**")
+        lines.append("- **待执行指令**：")
         for o in orders:
             action = o.get("action", "")
             icon = "🟢" if "买" in action else "🔴"
@@ -94,13 +111,13 @@ def format_account_plan_markdown(account, plan, signal):
             shares = o.get("shares", 0)
             price = o.get("price", 0)
             amt = o.get("amount", 0)
-            lines.append(f"- {icon} **{action} {name} (`{sym}`)**：{shares:,} 份 @ ¥{price:.3f}（预估 ¥{amt:,.2f}）")
+            lines.append(f"  - {icon} **{action} {name} (`{sym}`)**：{shares:,} 份 @ ¥{price:.3f}（预估 ¥{amt:,.2f}）")
         lines.append(f"- **预估剩余现金**：¥{plan.get('remaining_cash', 0):,.2f}")
     else:
         if plan.get("error"):
-            lines.append(f"\n**⚠️ 调仓计划生成异常**：{plan.get('error')}")
+            lines.append(f"- **⚠️ 计划生成等待数据**：{plan.get('error')}")
         else:
-            lines.append("\n**⚖️ 今日无需调仓**：持仓与策略目标完全吻合，继续耐心持有。")
+            lines.append("- **⚖️ 无需调仓**：当前持仓与策略目标完全吻合，继续耐心持有。")
 
     return "\n".join(lines)
 
