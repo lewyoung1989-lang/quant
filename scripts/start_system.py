@@ -20,7 +20,7 @@ def install_login():
     folder=Path.home()/'Library/LaunchAgents'
     folder.mkdir(parents=True,exist_ok=True)
     logs=ROOT/'data/user_profile';logs.mkdir(parents=True,exist_ok=True)
-    payload=dict(Label=LABEL,ProgramArguments=[str(ROOT/'.venv/bin/python'),str(ROOT/'scripts/run_daily_pipeline.py')],WorkingDirectory=str(ROOT),RunAtLoad=True,StartInterval=60,StandardOutPath=str(logs/'daily_pipeline.log'),StandardErrorPath=str(logs/'daily_pipeline_error.log'),EnvironmentVariables={'PYTHONUNBUFFERED':'1'})
+    payload=dict(Label=LABEL,ProgramArguments=[str(ROOT/'.venv/bin/python'),str(ROOT/'scripts/run_daily_pipeline.py')],WorkingDirectory=str(ROOT),RunAtLoad=True,StartInterval=60,StartCalendarInterval={'Hour':20,'Minute':10},StandardOutPath=str(logs/'daily_pipeline.log'),StandardErrorPath=str(logs/'daily_pipeline_error.log'),EnvironmentVariables={'PYTHONUNBUFFERED':'1'})
     path=folder/(LABEL+'.plist')
     content=plistlib.dumps(payload)
     if path.exists() and path.read_bytes()==content:
@@ -66,7 +66,7 @@ def main():
             if healthy():break
             time.sleep(1)
         else:raise RuntimeError('网页未能启动，请查看 data/user_profile/web.log')
-    print('量化研究台：http://127.0.0.1:8501/\n数据任务：登录后运行；缺失数据自动补齐，执行窗口仍为交易日 14:45–14:55。')
+    print('量化研究台：http://127.0.0.1:8501/\n历史数据：交易日 20:10 自动同步；缺失数据每 20 分钟重试。账户按各自设置在早盘或尾盘执行。')
     if not args.no_browser:
         import webbrowser
         webbrowser.open('http://127.0.0.1:8501/')

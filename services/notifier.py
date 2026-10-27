@@ -144,7 +144,7 @@ def notify_daily_plans(store, force=False):
         content += f"- **当前状态**：{msg}\n"
         content += f"- **风控原则**：系统坚决拒绝在官方真值缺失时盲目调仓。\n"
         content += f"- **操作指令**：**今日早盘暂停调仓，全账户继续保持现有持仓不动**。\n"
-        content += f"- **后台动作**：后台保持每 15 分钟自动轮询重试，一旦官方定稿立即刷新入库并补发指令。\n"
+        content += f"- **后台动作**：后台保持每 20 分钟自动轮询探测，一旦官方定稿立即刷新入库并补发指令。\n"
         ok, send_msg = send_wxpusher(content, summary)
         return ok, send_msg
 

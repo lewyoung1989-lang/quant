@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f7fa">
   <title>模拟账户 · 量化研究台</title>
-  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="connected.css">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="connected.css?v=20261022-2">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到当前账户</a>
@@ -29,6 +29,7 @@
       <header class="topbar"><span class="breadcrumb">工作台<span>/</span><b>模拟账户</b></span><div class="topbar-right"><span class="demo-label">模拟交易环境</span><button class="icon-button" aria-label="操作说明" data-action="help"><span data-icon="help-circle"></span></button></div></header>
       <main class="page">
         <div class="page-heading"><div><h1>模拟账户</h1><p>选择账户查看持仓，核对清单后执行模拟调仓。</p></div><button class="button primary" data-action="create"><span data-icon="plus"></span>新增模拟账户</button></div>
+        <section class="data-sync-bar" aria-label="回测数据同步"><div><b id="data-asof">回测数据待检查</b><span>交易日 20:10 自动同步</span><small id="data-sync-message" role="status" aria-live="polite">同步历史日线、指数估值与国债利率。</small></div><button class="button compact" data-action="sync-data" title="下载最新完整交易日的历史数据，完成后更新回测结束日期"><span data-icon="download"></span><span>同步回测数据</span></button></section>
         <section aria-label="账户列表" class="accounts-section"><div class="section-inline"><div class="account-filter"><b>我的账户 <span id="account-count">3</span></b><label class="search-field"><span data-icon="search"></span><input id="account-search" type="search" placeholder="搜索账户" aria-label="搜索账户" autocomplete="off"></label></div><span class="account-total" id="all-assets"></span></div><div id="account-list" class="account-list"></div></section>
         <section id="workspace" class="workspace" aria-label="当前账户" tabindex="-1"><div class="empty-state"><h3>正在读取账户…</h3><p>正在连接本地账户与行情服务。</p></div></section>
         <footer class="page-footer"><span><span class="status-dot"></span>实际行情 · 模拟成交 · 不连接券商</span><button class="text-button" data-action="tasks" id="worker-state">查看数据与任务状态</button></footer>
@@ -38,6 +39,6 @@
   <dialog id="drawer" class="drawer" aria-labelledby="drawer-title"><div class="drawer-shell"><header class="drawer-header"><div><h2 id="drawer-title"></h2><p id="drawer-subtitle"></p></div><button class="icon-button" data-action="close" aria-label="关闭面板"><span data-icon="x"></span></button></header><div id="drawer-body" class="drawer-body"></div></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <script src="icons.js"></script>
-  <script src="app.js?v=20261021-2"></script>
+  <script src="app.js?v=20261027-position-weight"></script>
 </body>
 </html>

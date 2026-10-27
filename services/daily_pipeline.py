@@ -11,7 +11,7 @@ import pandas as pd
 from services.simulation_store import ROOT, now
 from services.simulation_service import is_session, previous_session, fetch_quotes, strategy_signal, symbols_for, local_time
 
-DAILY_SYNC_TIME = dt.time(15, 10)
+DAILY_SYNC_TIME = dt.time(20, 10)
 
 
 def target_day(at, manual=False):
@@ -36,7 +36,7 @@ def sync_status(store):
     request = store.metadata('pipeline_sync_request') or {}
     state['syncing'] = request.get('status') in ('待处理', '同步中') or state.get('status') == '同步中'
     state['request'] = request
-    state['schedule'] = '交易日 15:10'
+    state['schedule'] = '交易日 20:10'
     return state
 
 
@@ -132,7 +132,7 @@ def tick(store, at=None, updater=run_resource, force=False):
     state = store.metadata('pipeline') or {}
     try:
         day = target_day(at, manual=force)
-        # A manual sync between 15:00 and 15:10 must not be rolled back by the scheduler.
+        # A manual sync between 15:00 and 20:10 must not be rolled back by the scheduler.
         latest_complete = target_day(at, manual=True)
         if state.get('target') and day < state['target'] <= latest_complete:
             day = state['target']
@@ -166,11 +166,11 @@ def tick(store, at=None, updater=run_resource, force=False):
         try:
             jobs[resource] = {**updater(resource, day), 'status':'成功', 'target':day}
         except Exception as exc:
-            jobs[resource] = {**job, 'status':'等待重试', 'target':day, 'error':str(exc)[-600:], 'retry_after':(at+dt.timedelta(minutes=15)).isoformat()}
+            jobs[resource] = {**job, 'status':'等待重试', 'target':day, 'error':str(exc)[-600:], 'retry_after':(at+dt.timedelta(minutes=20)).isoformat()}
         store.metadata('pipeline', state)
     ready = all(jobs.get(r,{}).get('asof') == day and jobs[r].get('status') == '成功' for r in resources)
     state.update(ready=ready, status='数据已就绪' if ready else '数据待更新',
-                 message=f'数据截至 {day}' if ready else f'尚有数据未覆盖 {day}，15 分钟后重试；暂停调仓。', heartbeat=now().isoformat())
+                 message=f'数据截至 {day}' if ready else f'尚有数据未覆盖 {day}，20 分钟后重试；暂停调仓。', heartbeat=now().isoformat())
     store.metadata('pipeline', state)
     if ready:
         if force or state.get('data_asof') != day:
