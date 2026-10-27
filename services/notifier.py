@@ -135,6 +135,19 @@ def notify_daily_plans(store, force=False):
     today_str = now().strftime("%Y-%m-%d")
     push_history = store.metadata("push_history") or {}
 
+    pipeline = store.metadata("pipeline") or {}
+    if not pipeline.get("ready"):
+        msg = pipeline.get("message", "前一交易日官方估值数据尚未公布")
+        summary = f"【数据等待】前日官方估值尚未定稿，早盘暂停调仓"
+        content = f"## ⚠️ 官方数据定稿等待中 ({today_str})\n\n"
+        content += f"> 检查时点：{now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        content += f"- **当前状态**：{msg}\n"
+        content += f"- **风控原则**：系统坚决拒绝在官方真值缺失时盲目调仓。\n"
+        content += f"- **操作指令**：**今日早盘暂停调仓，全账户继续保持现有持仓不动**。\n"
+        content += f"- **后台动作**：后台保持每 15 分钟自动轮询重试，一旦官方定稿立即刷新入库并补发指令。\n"
+        ok, send_msg = send_wxpusher(content, summary)
+        return ok, send_msg
+
     # Check dedupe: only send once per day unless forced or has new plan
     if not force and push_history.get("last_date") == today_str and not push_history.get("has_orders"):
         return True, "今日已推送过无调仓通知，跳过重复推送"
