@@ -54,7 +54,7 @@ def load_or_sync_data(defensive_asset="cash"):
         df_etf = fetch_sina_stock_kline(ETF_SYMBOL, datalen=3000)
         df_etf.to_csv(etf_file)
         
-        df_idx = ak.stock_zh_index_hist_csindex(symbol="H30269", start_date="20190101", end_date="20261016")
+        df_idx = ak.stock_zh_index_hist_csindex(symbol="H30269", start_date="20190101", end_date=pd.Timestamp.now(tz="Asia/Shanghai").strftime("%Y%m%d"))
         df_idx["日期"] = pd.to_datetime(df_idx["日期"])
         df_idx.set_index("日期", inplace=True)
         df_idx.to_csv(idx_file)

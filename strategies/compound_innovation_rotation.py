@@ -43,7 +43,7 @@ def run_compound_innovation_rotation(
     th_neutral=0.35,
     erp_delta=0.025,
     start_time="2019-01-18",
-    end_time="2026-10-20",
+    end_time=None,
     benchmark="sh000300",
     cost_rate=0.0003,
     **kwargs
@@ -61,7 +61,7 @@ def run_compound_innovation_rotation(
         idx_df = pd.read_csv(idx_file, index_col=0, parse_dates=True)
     else:
         import akshare as ak
-        idx_df = ak.stock_zh_index_hist_csindex(symbol="H30269", start_date="20190101", end_date="20261020")
+        idx_df = ak.stock_zh_index_hist_csindex(symbol="H30269", start_date="20190101", end_date=pd.Timestamp.now(tz="Asia/Shanghai").strftime("%Y%m%d"))
         idx_df["日期"] = pd.to_datetime(idx_df["日期"])
         idx_df.set_index("日期", inplace=True)
         idx_df.to_csv(idx_file)
@@ -78,7 +78,7 @@ def run_compound_innovation_rotation(
     # 共同交易日对齐
     common_idx = tech_df.index.intersection(div_df.index).intersection(bond_df.index).intersection(idx_df.index)
     start_dt = pd.to_datetime(start_time)
-    end_dt = pd.to_datetime(end_time)
+    end_dt = pd.to_datetime(end_time or pd.Timestamp.now(tz="Asia/Shanghai").date())
     common_idx = common_idx[(common_idx >= start_dt) & (common_idx <= end_dt)].sort_values()
 
     warmup_days = max(lookback_window, trend_filter_window if use_trend_filter else 0, 60)

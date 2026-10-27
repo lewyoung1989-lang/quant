@@ -48,6 +48,20 @@ class ResearchPreferences:
     def __init__(self, strategy):
         self.strategy = strategy
 
+    def apply_data_sync(self, day, revision):
+        """Advance only the end date once per successful historical-data revision."""
+        if not day or not revision:
+            return
+        marker = 'research_data_sync_' + self.strategy
+        identity = [self.strategy, 'date_input', '结束日期', None, None, None]
+        key = 'research_' + hashlib.sha256(repr(identity).encode()).hexdigest()[:24]
+        if read(marker) != revision:
+            write(key, dt.date.fromisoformat(day))
+            write(marker, revision)
+        if st.session_state.get(marker) != revision:
+            st.session_state[key] = read(key)
+            st.session_state[marker] = revision
+
     def __getattr__(self, kind):
         widget = getattr(st, kind)
 

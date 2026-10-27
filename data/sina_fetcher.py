@@ -27,7 +27,10 @@ def fetch_tencent_stock_kline(symbol="sz159915", start_date="2011-01-01", end_da
     headers = {"User-Agent": "Mozilla/5.0"}
     
     all_klines = []
-    curr_end = end_date or datetime.datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
+    # Tencent treats a supplied end boundary as exclusive for some ETF series.
+    # Request one more calendar day, then trim to the inclusive date requested.
+    last_day = datetime.date.fromisoformat(str(end_date)) if end_date else datetime.datetime.now(ZoneInfo('Asia/Shanghai')).date()
+    curr_end = (last_day + datetime.timedelta(days=1)).isoformat()
     
     for _ in range(15): # 最多向前翻页 15 次，足够覆盖 15 年以上
         url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,{start_date},{curr_end},640,qfq"
@@ -66,7 +69,7 @@ def fetch_tencent_stock_kline(symbol="sz159915", start_date="2011-01-01", end_da
     df = pd.DataFrame(records).set_index("datetime")
     df.index = pd.to_datetime(df.index)
     df.sort_index(inplace=True)
-    return df
+    return df.loc[df.index <= pd.Timestamp(last_day)]
 
 def fetch_sina_stock_kline(symbol="sh600519", datalen=1024, start_date=None):
     """

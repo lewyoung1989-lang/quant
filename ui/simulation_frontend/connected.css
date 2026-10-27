@@ -35,3 +35,60 @@ body.navigation-only .sidebar{justify-content:flex-start}
 .fee-settings summary{cursor:pointer;min-height:28px;display:list-item;line-height:28px}
 .fee-settings[open]>.field{margin-top:14px;color:var(--ink)}
 .execution-settings{margin-bottom:9px;background:#fff}
+/* Every account stays visible; columns reflow instead of becoming a carousel. */
+.account-list{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible;scroll-snap-type:none;padding-bottom:2px}
+.account-card-head{align-items:flex-start}
+.account-card-head>span:first-child{min-width:0;overflow-wrap:anywhere}
+.account-card-head>.status-dot{flex-shrink:0;margin-top:7px}
+.account-card-bottom{flex-wrap:wrap;row-gap:6px}
+.data-sync-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:-4px 0 24px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.data-sync-bar>div{min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.data-sync-bar b{font-size:12px;font-weight:550}
+.data-sync-bar span,.data-sync-bar small{font-size:11px;color:var(--muted)}
+.data-sync-bar small{flex-basis:100%;overflow-wrap:anywhere}
+.data-sync-bar .button{flex-shrink:0;min-height:36px}
+.data-sync-bar .button span{color:inherit}
+@media(max-width:1250px){.account-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.account-list{grid-template-columns:minmax(0,1fr);gap:10px}.data-sync-bar{align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:18px}.data-sync-bar .button{min-height:44px}.account-card{padding:12px 14px}.account-strategy{margin-bottom:8px}}
+
+/* Tomorrow rebalance block & after-close enhancements */
+.heading-group{display:flex;align-items:center;gap:8px}
+.account-tomorrow-pill{display:flex;align-items:center;gap:6px;background:#f3f6fb;border-radius:5px;padding:4px 8px;margin:6px 0 8px;font-size:11px}
+.pill-label{color:var(--muted);font-size:10px}
+.pill-target{color:var(--ink);font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tomorrow-target-card{background:#f8fafd;border:1px solid #dce4f0;border-radius:8px;padding:12px 14px;margin-top:14px}
+.target-card-header{display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:10px}
+.target-badge{background:#e8f0fe;color:var(--accent);font-weight:600;padding:2px 6px;border-radius:4px}
+.target-date{color:var(--muted)}
+.target-main-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.target-asset-cell label,.target-weight-cell label{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}
+.asset-title-group{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.asset-name{font-size:14px;color:var(--ink);font-weight:650}
+.code-chip{font-size:10px;background:#e9ecf2;color:#55627a;padding:1px 5px;border-radius:3px}
+.target-weight-num{font-size:22px;font-weight:700;color:var(--accent);line-height:1.2}
+.target-compare-bar{margin-top:11px;padding-top:10px;border-top:1px dashed #dce4f0}
+.compare-labels{display:flex;align-items:center;gap:7px;font-size:11px;color:#5e6d87}
+.compare-labels strong{color:var(--ink);font-weight:600}
+.compare-arrow{color:var(--muted);display:inline-flex;align-items:center}
+.compare-arrow .icon{width:13px;height:13px}
+.delta-chip{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:4px;font-weight:550}
+.delta-chip.positive{background:#fbefef;color:var(--red)}
+.delta-chip.negative{background:#edf6f1;color:var(--green)}
+.delta-chip.neutral{background:#f0f3f8;color:var(--muted)}
+.mini-track{height:5px;background:#e2e7f0;border-radius:3px;position:relative;margin-top:6px;overflow:hidden}
+.mini-track .target-fill{position:absolute;height:100%;background:var(--accent);opacity:.85;border-radius:3px}
+.target-subweights{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;padding-top:8px;border-top:1px dashed #dce4f0}
+.subweight-item{background:#fff;border:1px solid #e1e7f0;border-radius:5px;padding:5px 6px;text-align:center}
+.subweight-item.active{border-color:#b4ccf9;background:#f3f7fe}
+.subweight-item small{display:block;font-size:9px;color:var(--muted)}
+.subweight-item b{display:block;font-size:12px;color:var(--ink);margin-top:2px}
+.subweight-item.active b{color:var(--accent)}
+.plan-orders-heading{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px}
+.plan-orders-heading small{font-weight:400;color:var(--muted);font-size:10px}
+.order-status-chip{color:#64748b;font-size:10px}
+.tomorrow-no-trade{display:flex;align-items:flex-start;gap:9px;padding:11px 12px;background:#f7faf8;border:1px solid #d8ebd9;border-radius:7px;color:#2e6a45;margin-top:14px}
+.tomorrow-no-trade .icon{width:17px;height:17px;flex-shrink:0;margin-top:2px}
+.tomorrow-no-trade b{display:block;font-size:12px;font-weight:600}
+.tomorrow-no-trade p{margin:2px 0 0;font-size:11px;color:#4b7d5f;line-height:1.4}
+.after-close-btn{opacity:.85}
+

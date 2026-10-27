@@ -23,6 +23,8 @@ from strategies.twin_innovation_bond_rotation import run_twin_innovation_bond_ro
 from strategies.compound_innovation_rotation import run_compound_innovation_rotation
 from strategies.dividend_lowvol_swing_backtest import run_dividend_backtest, generate_trade_ledger
 from ui.simulation_component import render_simulation_workspace
+from services.daily_pipeline import register_research_symbols, target_day
+from services.simulation_store import SimulationStore, now
 
 from data.etf_pool import ETF_POOL
 from strategies.trade_visualizer import (
@@ -72,6 +74,7 @@ strategy_mode = st.session_state.get("workspace_mode", read_preference("workspac
 if strategy_mode not in {"模拟账户", "红利高抛低吸", "攻守轮动", "复合攻守轮动", "因子实验", "模型回测"}:
     strategy_mode = "模拟账户"
 preferences = ResearchPreferences(strategy_mode)
+latest_research_day = target_day(now(), manual=True)
 if strategy_mode != "模拟账户":
     render_research_shell(strategy_mode)
     research_heading = st.empty()
@@ -107,7 +110,7 @@ elif strategy_mode == "红利高抛低吸":
         )
 
         start_date = preferences.date_input("开始日期", pd.to_datetime("2019-04-19"))
-        end_date = preferences.date_input("结束日期", pd.to_datetime("2026-10-09"))
+        end_date = preferences.date_input("结束日期", pd.to_datetime(latest_research_day))
 
         st.markdown("### 策略二 ERP 三档区域仓位自定义")
         w_undervalue = preferences.slider(
@@ -168,6 +171,8 @@ elif strategy_mode == "红利高抛低吸":
             """,
             unsafe_allow_html=True
         )
+
+    register_research_symbols(SimulationStore(), strategy_mode, ["sh512890", "sh511260", "sh000300"])
 
     with research_heading.container():
         # 标题与运行按钮
@@ -621,7 +626,7 @@ elif strategy_mode == "攻守轮动":
             default_start_val = pd.to_datetime("2022-08-01")
 
         start_date = preferences.date_input("开始日期", default_start_val)
-        end_date = preferences.date_input("结束日期", pd.to_datetime("2026-10-09"))
+        end_date = preferences.date_input("结束日期", pd.to_datetime(latest_research_day))
 
         with st.expander("更多设置 · 费率与基准"):
             benchmark = preferences.text_input("基准标的", "SH000300")
@@ -638,6 +643,8 @@ elif strategy_mode == "攻守轮动":
             """,
             unsafe_allow_html=True
         )
+
+    register_research_symbols(SimulationStore(), strategy_mode, [selected_tech, selected_bond, benchmark])
 
     with research_heading.container():
         # 页面标题与运行按钮
@@ -672,7 +679,9 @@ elif strategy_mode == "攻守轮动":
         unsafe_allow_html=True
     )
 
-    if run_rotation_btn:
+    rotation_data_revision = (SimulationStore().metadata('pipeline') or {}).get('completed_at')
+    rotation_data_changed = rotation_data_revision and st.session_state.get('rotation_report_revision') != rotation_data_revision
+    if run_rotation_btn or rotation_data_changed:
         with st.spinner("正在基于历史数据执行攻守轮动撮合..."):
             try:
                 res_df = run_twin_innovation_bond_rotation(
@@ -686,6 +695,7 @@ elif strategy_mode == "攻守轮动":
                 os.makedirs("./reports", exist_ok=True)
                 res_df.to_csv(TWIN_BOND_REPORT_CSV)
                 st.session_state["has_run_rotation"] = True
+                st.session_state['rotation_report_revision'] = rotation_data_revision
                 st.toast("攻守轮动回测完成！", icon="✅")
             except Exception as e:
                 st.error(f"轮动策略执行失败: {e}")
@@ -765,7 +775,7 @@ elif strategy_mode == "复合攻守轮动":
         th_neutral = preferences.slider("低吸满仓分位阈值", min_value=25, max_value=60, value=35, step=5, format="%d%%") / 100.0
 
         start_date = preferences.date_input("开始日期", pd.to_datetime("2019-01-18"))
-        end_date = preferences.date_input("结束日期", pd.to_datetime("2026-10-20"))
+        end_date = preferences.date_input("结束日期", pd.to_datetime(latest_research_day))
 
         with st.expander("更多设置 · 费率与基准"):
             benchmark = preferences.text_input("基准标的", "SH000300")
@@ -783,6 +793,8 @@ elif strategy_mode == "复合攻守轮动":
             """,
             unsafe_allow_html=True
         )
+
+    register_research_symbols(SimulationStore(), strategy_mode, [selected_tech, selected_div, selected_bond, benchmark])
 
     with research_heading.container():
         c_head_left, c_head_right = st.columns([4, 1.2])
@@ -856,7 +868,7 @@ elif strategy_mode == "复合攻守轮动":
             cost_rate=cost_r
         )
 
-    snapshot_paths = [Path("data") / name for name in ("sh512890_kline.csv", "h30269_index_hist.csv", "bond_rates_hist.csv", "sina_cache/sz159915.csv", "sina_cache/sh511260.csv", "sina_cache/sh000300.csv")]
+    snapshot_paths = [Path("data") / name for name in ("h30269_index_hist.csv", "bond_rates_hist.csv", *(f"sina_cache/{s.lower()}.csv" for s in (selected_tech, selected_div, selected_bond, benchmark)))]
     snapshot_version = tuple(p.stat().st_mtime_ns if p.exists() else 0 for p in snapshot_paths)
 
     if run_compound_btn:
@@ -877,7 +889,7 @@ elif strategy_mode == "复合攻守轮动":
                     th_overheat=th_overheat,
                     th_neutral=th_neutral,
                     start_time="2019-01-18",
-                    end_time="2026-10-20",
+                    end_time=latest_research_day,
                     benchmark=benchmark,
                     cost_rate=cost_rate
                 )
@@ -905,7 +917,7 @@ elif strategy_mode == "复合攻守轮动":
             th_overheat,
             th_neutral,
             "2019-01-18",
-            "2026-10-20",
+            latest_research_day,
             benchmark,
             cost_rate
         )

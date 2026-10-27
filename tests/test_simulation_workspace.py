@@ -69,6 +69,13 @@ class WorkspaceTests(unittest.TestCase):
             self.command('execute',planId='reviewed-plan',quotes={'fake':1},cash=1e9,at='2026-10-16T14:50:00')
         execute.assert_called_once_with(self.store,self.account['id'],'reviewed-plan','manual:reviewed-plan')
 
+    def test_historical_sync_uses_pipeline_and_never_executes_trades(self):
+        with patch('ui.simulation_component.request_sync', return_value='同步已启动') as sync, patch('ui.simulation_component.execute_plan') as execute:
+            result = self.command('sync-data')
+        sync.assert_called_once_with(self.store)
+        execute.assert_not_called()
+        self.assertEqual(result['message'], '同步已启动')
+
     def test_snapshot_uses_real_records_and_preserves_missing_prices(self):
         self.store.transfer(self.account['id'],1,20000)
         with patch('ui.simulation_component.live_quotes',return_value={}):
@@ -84,6 +91,29 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.command('navigate',mode='因子实验')['navigate'],'因子实验')
         with self.assertRaises(AccountError):self.command('navigate',mode='arbitrary')
         with self.assertRaises(AccountError):self.command('create',strategy='unknown',config={})
+
+    def test_after_close_market_status_and_target_payload(self):
+        from services.simulation_service import market_status, next_session
+        import datetime as dt
+        # On a weekday after 15:00
+        after_close_time = dt.datetime(2026, 10, 22, 19, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+        status = market_status(after_close_time, 'next_open')
+        self.assertTrue(status['is_after_close'])
+        self.assertEqual(status['next_session'], '2026-10-23')
+        self.assertIn('明日', status['reason'])
+
+        quotes = {
+            'sh588380': {'price': 100., 'open': 100., 'quote_time': after_close_time.isoformat()},
+            'sh511010': {'price': 100., 'open': 100., 'quote_time': after_close_time.isoformat()}
+        }
+        with patch('ui.simulation_component.live_quotes', return_value=quotes), patch('ui.simulation_component.now', return_value=after_close_time):
+            data = snapshot(self.store, self.account['id'])
+        account_data = data['accounts'][0]
+        self.assertIn('target', account_data['plan'])
+        self.assertIn('name', account_data['plan']['target'])
+        self.assertIn('weight', account_data['plan']['target'])
+        self.assertTrue(data['market']['is_after_close'])
+        self.assertEqual(data['market']['next_session'], '2026-10-23')
 
 
 if __name__=='__main__':unittest.main()

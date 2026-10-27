@@ -10,6 +10,7 @@ from services.simulation_store import AccountError, SimulationStore, now
 from services.simulation_service import ASSETS, build_plan, execute_plan, market_status, sellable, symbols_for
 from services.simulation_runtime import ensure_worker, worker_alive
 from ui.simulation_data import live_quotes, cached_signal, refresh_quotes
+from services.daily_pipeline import request_sync, sync_status
 
 FRONTEND = Path(__file__).parent / 'simulation_frontend'
 workspace_component = components.declare_component('quant_simulation_workspace', path=str(FRONTEND.resolve()))
@@ -103,14 +104,19 @@ def snapshot(store, selected=None):
                          observation=observation, positions=positions, portfolio=port, legacyOpening=store.legacy_opening_snapshot(a), trades=records('trade'), funds=records('fund'), events=records('event'),
                          plan=dict(id=p['id'], orders=p['orders'], fees=p['fees'], remaining=p['remaining_cash'], error=p['error'], signal=sig,
                                    canExecute=p['can_execute'], reasons=p['reasons'], quoteTimes=p['quote_times'],
-                                   target=dict(symbol=sig['target_symbol'] if sig else '', weight=sig['weight']*100 if sig else None),
+                                   target=dict(symbol=sig['target_symbol'] if sig else '',
+                                               name=ASSETS.get(sig['target_symbol'], sig['target_symbol']) if sig else '',
+                                               weight=sig['weight']*100 if sig else None,
+                                               weights={s: round(float(w)*100, 1) for s, w in sig['weights'].items()} if sig and sig.get('weights') else None,
+                                               is_attack=sig.get('is_attack') if sig else None,
+                                               description=sig.get('description') if sig else None),
                                    insufficient=any('不足一手' in r for r in p['reasons']))))
     selected_account = next((a for a in accounts if a["id"] == selected), accounts[0] if accounts else None)
-    market = market_status(mode=selected_account["parameters"].get("execution_mode", "tail") if selected_account else "tail")
+    market = market_status(at=now(), mode=selected_account["parameters"].get("execution_mode", "tail") if selected_account else "tail")
     market.update(full=f"{now():%Y-%m-%d} · {market['label']}", time=f'{now():%H:%M:%S}')
     return clean(dict(accounts=rows, selected=selected or (rows[0]['id'] if rows else None),
                       assets={s: {'name': ASSETS.get(s, s), 'price': quotes.get(s, {}).get('price'), 'prevClose': quotes.get(s, {}).get('prev_close'), 'chgPct': quotes.get(s, {}).get('chg_pct'), 'quoteTime': quotes.get(s, {}).get('quote_time')} for s in set(ASSETS)|set(symbols)},
-                      market=market, worker={'alive': worker_alive(store), 'pipeline': store.metadata('pipeline') or {}}))
+                      market=market, worker={'alive': worker_alive(store), 'pipeline': sync_status(store)}))
 
 
 def dispatch(store, action):
@@ -142,6 +148,8 @@ def dispatch(store, action):
         if not action.get('silent'):
             refresh_quotes()
         response['message'] = '行情与清单已刷新。'
+    elif kind == 'sync-data':
+        response['message'] = request_sync(store)
     elif kind == 'select':
         store.get(account_id)
     elif kind == 'navigate':
