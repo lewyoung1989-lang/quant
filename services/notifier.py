@@ -76,7 +76,14 @@ def format_account_plan_markdown(account, plan, signal):
     if signal:
         if "erp_pct" in signal:
             erp_val = signal.get("erp_pct", 0) * 100
-            band = signal.get("erp_band", "正常")
+            band = signal.get("erp_band", signal.get("band", "正常"))
+            pe_val = signal.get("pe")
+            rate_val = signal.get("rate_10y")
+            asof_val = signal.get("historical_asof", "")
+            if pe_val is not None:
+                rate_str = f"，10年期国债收益率 `{rate_val:.2f}%`" if rate_val is not None else ""
+                asof_str = f"（基准日：{asof_val}）" if asof_val else ""
+                lines.append(f"- **官方估值真值**：中证红利低波 PE `{pe_val:.2f}`{rate_str}{asof_str}")
             lines.append(f"- **ERP 估值分位**：`{erp_val:.1f}%` ({band})")
         if "weights" in signal and signal["weights"]:
             w_str = " + ".join([f"{ASSETS.get(k, k)} {int(round(v*100))}%" for k, v in signal["weights"].items() if v > 0])
@@ -148,9 +155,17 @@ def notify_daily_plans(store, force=False):
         ok, send_msg = send_wxpusher(content, summary)
         return ok, send_msg
 
-    # Check dedupe: only send once per day unless forced or has new plan
-    if not force and push_history.get("last_date") == today_str and not push_history.get("has_orders"):
-        return True, "今日已推送过无调仓通知，跳过重复推送"
+    data_asof = pipeline.get("data_asof")
+    current_time = now().time()
+    is_evening = current_time >= dt.time(19, 0)
+
+    # 区分夜间收盘定稿推送与日内推送，避免日内推送阻断 20:10 后的次日正式策略通知
+    if is_evening:
+        if not force and push_history.get("last_evening_asof") == data_asof and not push_history.get("has_orders"):
+            return True, f"截至 {data_asof} 的定稿夜间策略已推送，跳过重复推送"
+    else:
+        if not force and push_history.get("last_date") == today_str and not push_history.get("has_orders"):
+            return True, "今日已推送过无调仓通知，跳过重复推送"
 
     symbols = sorted({s for a in accounts for s in symbols_for(a)})
     try:
@@ -191,7 +206,9 @@ def notify_daily_plans(store, force=False):
         push_history["last_date"] = today_str
         push_history["last_time"] = now().isoformat()
         push_history["has_orders"] = total_orders > 0
+        if is_evening:
+            push_history["last_evening_asof"] = data_asof
         store.metadata("push_history", push_history)
-        store.record_event(accounts[0]["id"], "微信推送已送达", summary, "已完成", f"wx_push:{today_str}:{total_orders}")
+        store.record_event(accounts[0]["id"], "微信推送已送达", summary, "已完成", f"wx_push:{today_str}:{total_orders}:{is_evening}")
 
     return ok, msg

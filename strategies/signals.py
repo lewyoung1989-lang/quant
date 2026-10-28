@@ -400,6 +400,8 @@ def compute_compound_rotation_signal(
         "tech_ma_trend": tech_ma_trend,
         "tech_mom": tech_mom,
         "div_mom": div_mom,
+        "pe": pe,
+        "rate_10y": rate_10y,
         "erp": erp,
         "erp_pct": percentile,
         "erp_band": erp_band,

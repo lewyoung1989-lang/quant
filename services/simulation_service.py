@@ -327,9 +327,17 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
     port = portfolio(a, quotes)
     orders, remaining, error = [], a["cash_available"], None
     try:
-        if any(positive_price(quotes.get(s, {})) is None for s in symbols):
-            raise AccountError("所需标的行情不完整，请刷新行情后重试。")
-        signal = signal or strategy_signal(a, quotes, at)
+        usable_quotes = {}
+        for s in symbols:
+            q = dict(quotes.get(s, {}))
+            p = positive_price(q)
+            if p is None and not status["ready"]:
+                # 盘前竞价或夜间非决策窗，若实时最新价为0或未就绪，允许回退至昨收价试算
+                p = positive_price({'price': q.get('prev_close')})
+            if p is None:
+                raise AccountError("所需标的行情不完整，请刷新行情后重试。")
+            usable_quotes[s] = {**q, 'price': p}
+        signal = signal or strategy_signal(a, usable_quotes, at)
         if not signal.get("valid", False):
             raise AccountError(signal.get("error", "策略信号无效。"))
         if signal.get("historical_asof") != previous_session(at.date()):
