@@ -85,6 +85,12 @@ def format_account_plan_markdown(account, plan, signal):
                 asof_str = f"（基准日：{asof_val}）" if asof_val else ""
                 lines.append(f"- **官方估值真值**：中证红利低波 PE `{pe_val:.2f}`{rate_str}{asof_str}")
             lines.append(f"- **ERP 估值分位**：`{erp_val:.1f}%` ({band})")
+        if "tech_bias" in signal:
+            bias_val = signal.get("tech_bias", 0) * 100
+            tech_ma_val = signal.get("tech_ma") or signal.get("tech", {}).get("ma", 0)
+            tech_price_val = signal.get("tech_price") or signal.get("tech", {}).get("price", 0)
+            tech_name = signal.get("tech", {}).get("name", "进攻标的")
+            lines.append(f"- **乖离度 (BIAS)**：{tech_name} `{bias_val:+.2f}%`（收盘价 `{tech_price_val:.3f}` / MA20 `{tech_ma_val:.3f}`）")
         if "weights" in signal and signal["weights"]:
             w_str = " + ".join([f"{ASSETS.get(k, k)} {int(round(v*100))}%" for k, v in signal["weights"].items() if v > 0])
             lines.append(f"- **策略目标配比**：**{w_str}**")

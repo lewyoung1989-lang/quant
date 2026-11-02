@@ -446,6 +446,8 @@ def compute_bottom_fishing_signal(
         live_quotes = fetch_realtime_quotes([tech_symbol, bond_symbol])
 
     now = as_of or datetime.datetime.now(ZoneInfo("Asia/Shanghai"))
+    real_today = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    market_date = min(now.date(), real_today)
     tech_quote = live_quotes.get(tech_symbol.lower(), {})
     bond_quote = live_quotes.get(bond_symbol.lower(), {})
 
@@ -454,7 +456,7 @@ def compute_bottom_fishing_signal(
     if tech_df.empty:
         return {"valid": False, "error": "创业板历史日线未取得，请更新数据后重试。"}
 
-    today_str = now.date().isoformat()
+    today_str = market_date.isoformat()
     hist_tech = tech_df[tech_df.index.strftime("%Y-%m-%d") < today_str]
     if len(hist_tech) < lookback_window + 2:
         return {"valid": False, "error": "创业板历史交易日不足，无法计算偏离率。"}
@@ -468,8 +470,8 @@ def compute_bottom_fishing_signal(
     else:
         tech_price = float(tech_quote.get("price") or hist_tech["close"].iloc[-1])
         tech_open = float(tech_quote.get("open") or hist_tech["open"].iloc[-1])
-        tech_close_series = pd.concat([hist_tech["close"].astype(float), pd.Series([tech_price], index=[now.date()])])
-        asof_date = now.date().isoformat()
+        tech_close_series = pd.concat([hist_tech["close"].astype(float), pd.Series([tech_price], index=[pd.Timestamp(market_date)])])
+        asof_date = market_date.isoformat()
 
     tech_ma = float(tech_close_series.iloc[-lookback_window:].mean())
     tech_bias = (tech_price - tech_ma) / tech_ma
@@ -478,7 +480,7 @@ def compute_bottom_fishing_signal(
     # 2. 获取 ERP 估值数据
     from strategies.dividend_lowvol_swing_backtest import compute_indicators, load_or_sync_data
     raw = compute_indicators(load_or_sync_data())
-    raw = raw[raw.index.strftime("%Y-%m-%d") < now.date().isoformat()].dropna(subset=["pe", "rate_10y", "erp"])
+    raw = raw[raw.index.strftime("%Y-%m-%d") <= market_date.isoformat()].dropna(subset=["pe", "rate_10y", "erp"])
     if len(raw) < 60:
         return {"valid": False, "error": "ERP 历史数据不足 60 个交易日。"}
 
