@@ -459,14 +459,17 @@ def compute_bottom_fishing_signal(
     if len(hist_tech) < lookback_window + 2:
         return {"valid": False, "error": "创业板历史交易日不足，无法计算偏离率。"}
 
-    if confirmed:
+    is_after_close = (now.hour >= 15)
+    if confirmed and not is_after_close:
         tech_close_series = hist_tech["close"].astype(float)
         tech_price = float(tech_close_series.iloc[-1])
         tech_open = float(hist_tech["open"].iloc[-1])
+        asof_date = hist_tech.index[-1].strftime("%Y-%m-%d")
     else:
         tech_price = float(tech_quote.get("price") or hist_tech["close"].iloc[-1])
         tech_open = float(tech_quote.get("open") or hist_tech["open"].iloc[-1])
         tech_close_series = pd.concat([hist_tech["close"].astype(float), pd.Series([tech_price], index=[now.date()])])
+        asof_date = now.date().isoformat()
 
     tech_ma = float(tech_close_series.iloc[-lookback_window:].mean())
     tech_bias = (tech_price - tech_ma) / tech_ma
@@ -528,7 +531,7 @@ def compute_bottom_fishing_signal(
 
     return {
         "valid": True,
-        "historical_asof": hist_tech.index[-1].strftime("%Y-%m-%d"),
+        "historical_asof": asof_date,
         "target_symbol": target_symbol,
         "weight": target_weight,
         "is_bottom_signal": is_bottom_signal,
