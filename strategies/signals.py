@@ -421,3 +421,130 @@ def compute_compound_rotation_signal(
             "price": bond_price, "weight": tw_bond
         }
     }
+
+
+def compute_bottom_fishing_signal(
+    tech_symbol="sz159915",
+    bond_symbol="sh511260",
+    lookback_window=20,
+    erp_threshold=0.05,
+    bias_threshold=-0.035,
+    take_profit=0.08,
+    stop_loss=-0.035,
+    current_holding="bond",
+    entry_price=None,
+    live_quotes=None,
+    as_of=None,
+    confirmed=False
+):
+    """
+    极值反抽抄底实时信号研判函数
+    """
+    if live_quotes is None:
+        from data.realtime_fetcher import fetch_realtime_quotes
+        live_quotes = fetch_realtime_quotes([tech_symbol, bond_symbol])
+
+    now = as_of or datetime.datetime.now(ZoneInfo("Asia/Shanghai"))
+    tech_quote = live_quotes.get(tech_symbol.lower(), {})
+    bond_quote = live_quotes.get(bond_symbol.lower(), {})
+
+    # 1. 获取创业板历史日线
+    tech_df = fetch_sina_stock_kline(tech_symbol, datalen=lookback_window + 30)
+    if tech_df.empty:
+        return {"valid": False, "error": "创业板历史日线未取得，请更新数据后重试。"}
+
+    today_str = now.date().isoformat()
+    hist_tech = tech_df[tech_df.index.strftime("%Y-%m-%d") < today_str]
+    if len(hist_tech) < lookback_window + 2:
+        return {"valid": False, "error": "创业板历史交易日不足，无法计算偏离率。"}
+
+    if confirmed:
+        tech_close_series = hist_tech["close"].astype(float)
+        tech_price = float(tech_close_series.iloc[-1])
+        tech_open = float(hist_tech["open"].iloc[-1])
+    else:
+        tech_price = float(tech_quote.get("price") or hist_tech["close"].iloc[-1])
+        tech_open = float(tech_quote.get("open") or hist_tech["open"].iloc[-1])
+        tech_close_series = pd.concat([hist_tech["close"].astype(float), pd.Series([tech_price], index=[now.date()])])
+
+    tech_ma = float(tech_close_series.iloc[-lookback_window:].mean())
+    tech_bias = (tech_price - tech_ma) / tech_ma
+    is_bullish = tech_price >= tech_open
+
+    # 2. 获取 ERP 估值数据
+    from strategies.dividend_lowvol_swing_backtest import compute_indicators, load_or_sync_data
+    raw = compute_indicators(load_or_sync_data())
+    raw = raw[raw.index.strftime("%Y-%m-%d") < now.date().isoformat()].dropna(subset=["pe", "rate_10y", "erp"])
+    if len(raw) < 60:
+        return {"valid": False, "error": "ERP 历史数据不足 60 个交易日。"}
+
+    baseline = raw.iloc[-1]
+    pe = float(baseline["pe"])
+    rate_10y = float(baseline["rate_10y"])
+    erp_pct = float(baseline["erp_pct"])
+    erp_val = float(baseline["erp"])
+
+    # 3. 抄底状态机研判
+    is_bottom_signal = (erp_pct <= erp_threshold) and (tech_bias <= bias_threshold) and is_bullish
+    
+    # 判断当前应持有标的
+    target_symbol = bond_symbol
+    target_weight = 1.0
+    action_desc = ""
+
+    if current_holding == "tech":
+        # 处于持股状态，检查止盈、止损或收复 MA20
+        curr_ret = (tech_price - entry_price) / entry_price if entry_price and entry_price > 0 else 0.0
+        if curr_ret >= take_profit:
+            target_symbol = bond_symbol
+            action_desc = f"持仓已达目标止盈位 (+{curr_ret*100:.1f}% >= +{take_profit*100:.1f}%)，止盈离场转入国债吃息。"
+        elif curr_ret <= stop_loss:
+            target_symbol = bond_symbol
+            action_desc = f"持仓触及防守止损位 ({curr_ret*100:.1f}% <= {stop_loss*100:.1f}%)，严守纪律止损转入国债。"
+        elif tech_price > tech_ma:
+            target_symbol = bond_symbol
+            action_desc = f"创业板价格 ({tech_price:.3f}) 成功收复 20 日均线 ({tech_ma:.3f})，反抽目标达成，落袋换回国债。"
+        else:
+            target_symbol = tech_symbol
+            action_desc = f"抄底持仓中（当前盈亏 {curr_ret*100:+.1f}%），未达离场条件，继续持有博取反弹。"
+    else:
+        # 当前持有国债吃息
+        if is_bottom_signal:
+            target_symbol = tech_symbol
+            action_desc = f"触发极值反抽抄底买点！红利ERP分位 {erp_pct*100:.1f}% <= {erp_threshold*100:.1f}%，创业板偏离率 {tech_bias*100:.1f}% <= {bias_threshold*100:.1f}% 且收阳企稳，全仓买入创业板 ETF。"
+        else:
+            target_symbol = bond_symbol
+            if erp_pct > erp_threshold:
+                reason_not = f"红利低波 ERP 分位 {erp_pct*100:.1f}% 未达 <= {erp_threshold*100:.1f}% 极值区"
+            elif tech_bias > bias_threshold:
+                reason_not = f"创业板偏离率 {tech_bias*100:.1f}% 尚未达到 <= {bias_threshold*100:.1f}% 极值超跌"
+            else:
+                reason_not = "创业板尚未收出止跌阳线实体"
+            action_desc = f"未触发抄底条件（{reason_not}）；继续 100% 持有十年期国债 ETF 无风险生息待命。"
+
+    return {
+        "valid": True,
+        "historical_asof": hist_tech.index[-1].strftime("%Y-%m-%d"),
+        "target_symbol": target_symbol,
+        "weight": target_weight,
+        "is_bottom_signal": is_bottom_signal,
+        "tech_price": tech_price,
+        "tech_open": tech_open,
+        "tech_ma": tech_ma,
+        "tech_bias": tech_bias,
+        "is_bullish": is_bullish,
+        "pe": pe,
+        "rate_10y": rate_10y,
+        "erp": erp_val,
+        "erp_pct": erp_pct,
+        "description": action_desc,
+        "tech": {
+            "symbol": tech_symbol, "name": tech_quote.get("name", "创业板ETF"),
+            "price": tech_price, "ma": tech_ma, "bias": tech_bias
+        },
+        "bond": {
+            "symbol": bond_symbol, "name": bond_quote.get("name", "十年国债ETF"),
+            "price": float(bond_quote.get("price") or 1.0)
+        }
+    }
+

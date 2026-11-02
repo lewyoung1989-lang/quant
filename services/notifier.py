@@ -67,7 +67,7 @@ def format_account_plan_markdown(account, plan, signal):
     from services.simulation_service import ASSETS
     acc_name = account.get("name", account.get("id"))
     strat = account.get("strategy_type")
-    strat_name = "复合攻守轮动" if strat == "compound_rotation" else ("红利低波 ERP" if strat == "dividend_erp" else "攻守动量轮动")
+    strat_name = "复合攻守轮动" if strat == "compound_rotation" else ("红利低波 ERP" if strat == "dividend_erp" else ("极值反抽抄底" if strat == "bottom_fishing" else "攻守动量轮动"))
 
     lines = [f"### 📊 【{acc_name}】{strat_name}"]
 

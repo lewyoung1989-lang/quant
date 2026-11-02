@@ -74,6 +74,8 @@ def symbols_for(account):
     p = account["parameters"]
     if account["strategy_type"] == "compound_rotation":
         symbols = {p["tech_symbol"], p.get("div_symbol", "sh512890"), p.get("bond_symbol", p.get("def_symbol", "sh511260"))}
+    elif account["strategy_type"] == "bottom_fishing":
+        symbols = {p.get("tech_symbol", "sz159915"), p.get("bond_symbol", "sh511260")}
     else:
         symbols = {p["tech_symbol"], p["def_symbol"]} if account["strategy_type"] == "rotation" else {"sh512890", "sh511260"}
     return sorted(symbols | {p["symbol"] for p in account["positions"] if p["shares"]})
@@ -170,6 +172,43 @@ def strategy_signal(account, quotes, at):
         if not result.get("valid"):
             raise AccountError(result.get("error", "复合轮动信号不可用。"))
         return result
+    if account["strategy_type"] == "bottom_fishing":
+        from strategies.signals import compute_bottom_fishing_signal
+        tech_symbol = p.get("tech_symbol", "sz159915")
+        bond_symbol = p.get("bond_symbol", "sh511260")
+        
+        # 寻找当前持仓状态与成本价
+        tech_shares = next((pos["shares"] for pos in account.get("positions", []) if pos["symbol"] == tech_symbol), 0)
+        current_holding = "tech" if tech_shares > 0 else "bond"
+        
+        # 提取创业板入场成本价（若有持仓）
+        entry_price = None
+        for pos in account.get("positions", []):
+            if pos["symbol"] == tech_symbol and pos.get("lots"):
+                entry_price = float(quotes.get(tech_symbol, {}).get("prev_close") or quotes.get(tech_symbol, {}).get("price") or 1.0)
+                
+        signal_quotes = quotes
+        confirmed = p.get("execution_mode") == "next_open"
+        if confirmed:
+            signal_quotes = {symbol: {**quote, "price": quote.get("prev_close") or quote.get("price")} for symbol, quote in quotes.items()}
+            
+        result = compute_bottom_fishing_signal(
+            tech_symbol=tech_symbol,
+            bond_symbol=bond_symbol,
+            lookback_window=int(p.get("lookback_window", 20)),
+            erp_threshold=float(p.get("erp_threshold", 0.05)),
+            bias_threshold=float(p.get("bias_threshold", -0.035)),
+            take_profit=float(p.get("take_profit", 0.08)),
+            stop_loss=float(p.get("stop_loss", -0.035)),
+            current_holding=current_holding,
+            entry_price=entry_price,
+            live_quotes=signal_quotes,
+            as_of=at,
+            confirmed=confirmed
+        )
+        if not result.get("valid"):
+            raise AccountError(result.get("error", "极值抄底信号不可用。"))
+        return result
     if account["strategy_type"] == "rotation":
         from strategies.signals import compute_rotation_signal
         signal_quotes = quotes
@@ -220,6 +259,12 @@ def allocation(account, signal, quotes, at):
         raise AccountError("持仓估值不完整，暂不能生成数量清单。")
     if account['strategy_type'] == 'compound_rotation':
         return allocate_multi_asset(account, signal.get('weights', {}), quotes, at, port)
+    if account['strategy_type'] == 'bottom_fishing':
+        tech_sym = account['parameters'].get('tech_symbol', 'sz159915')
+        bond_sym = account['parameters'].get('bond_symbol', 'sh511260')
+        tgt = signal.get('target_symbol', bond_sym)
+        weights = {tech_sym: 1.0 if tgt == tech_sym else 0.0, bond_sym: 1.0 if tgt == bond_sym else 0.0}
+        return allocate_multi_asset(account, weights, quotes, at, port)
     if account['strategy_type'] == 'dividend_erp' and account['parameters'].get('defensive_asset') == 'sh511260':
         return allocate_erp_bond(account, signal, quotes, at, port)
     target = signal["target_symbol"]

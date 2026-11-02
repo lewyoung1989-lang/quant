@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 ROOT = Path(__file__).resolve().parents[1]
-STRATEGIES = {"rotation": "攻守动量轮动", "compound_rotation": "复合攻守轮动", "dividend_erp": "红利低波 ERP 择时"}
+STRATEGIES = {"rotation": "攻守动量轮动", "compound_rotation": "复合攻守轮动", "dividend_erp": "红利低波 ERP 择时", "bottom_fishing": "极值反抽抄底"}
 ATTACKS = {"sz159915", "sh588380", "sh588000", "sh510300", "sh510500"}
 DIV_DEFENSES = {"sh512890", "sh510880"}
 BOND_DEFENSES = {"sh511260", "sh511010", "sh511090"}
@@ -36,6 +36,12 @@ def defaults(strategy, legacy=False):
             "lookback_window": 20, "execution_mode": "next_open",
             "use_bias_exit": True, "use_trend_filter": True,
             "th_overheat": 0.20, "th_neutral": 0.35
+        }
+    if strategy == "bottom_fishing":
+        return {
+            "tech_symbol": "sz159915", "bond_symbol": "sh511260",
+            "lookback_window": 20, "erp_threshold": 0.05, "bias_threshold": -0.035,
+            "take_profit": 0.08, "stop_loss": -0.035, "execution_mode": "next_open"
         }
     return {"tech_symbol": "sh588380", "def_symbol": "sh511010", "lookback_window": 20}
 
@@ -85,6 +91,15 @@ def validate_config(strategy, config):
         config.setdefault("use_trend_filter", True)
         config.setdefault("th_overheat", 0.20)
         config.setdefault("th_neutral", 0.35)
+    elif strategy == "bottom_fishing":
+        config.setdefault("tech_symbol", "sz159915")
+        config.setdefault("bond_symbol", "sh511260")
+        config.setdefault("lookback_window", 20)
+        config.setdefault("erp_threshold", 0.05)
+        config.setdefault("bias_threshold", -0.035)
+        config.setdefault("take_profit", 0.08)
+        config.setdefault("stop_loss", -0.035)
+        config.setdefault("execution_mode", "next_open")
 
     expected = defaults(strategy)
     if set(config) != set(expected):
@@ -95,6 +110,24 @@ def validate_config(strategy, config):
         n = config["lookback_window"]
         if not isinstance(n, (int, float)) or not math.isfinite(n) or int(n) != n or not 5 <= n <= 120:
             raise AccountError("动量周期须为 5–120 个交易日。")
+    elif strategy == "bottom_fishing":
+        if config["tech_symbol"] not in ATTACKS:
+            raise AccountError("请选择支持的抄底进攻 ETF。")
+        if config["bond_symbol"] not in BOND_DEFENSES:
+            raise AccountError("请选择支持的避险防守（国债类）ETF。")
+        n = config["lookback_window"]
+        if not isinstance(n, (int, float)) or not math.isfinite(n) or int(n) != n or not 5 <= n <= 120:
+            raise AccountError("偏离率周期须为 5–120 个交易日。")
+        if not (0.01 <= float(config["erp_threshold"]) <= 0.20):
+            raise AccountError("ERP 触发阈值须在 1%–20% 之间。")
+        if not (-0.20 <= float(config["bias_threshold"]) <= -0.01):
+            raise AccountError("超跌偏离率阈值须在 -20%–-1% 之间。")
+        if not (0.02 <= float(config["take_profit"]) <= 0.30):
+            raise AccountError("止盈阈值须在 2%–30% 之间。")
+        if not (-0.20 <= float(config["stop_loss"]) <= -0.01):
+            raise AccountError("止损阈值须在 -20%–-1% 之间。")
+        if config["execution_mode"] not in ("tail", "next_open"):
+            raise AccountError("请选择尾盘实时或次日开盘执行。")
     elif strategy == "compound_rotation":
         if config["tech_symbol"] not in ATTACKS:
             raise AccountError("请选择支持的进攻 ETF。")

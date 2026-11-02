@@ -14,7 +14,7 @@ from services.daily_pipeline import request_sync, sync_status
 
 FRONTEND = Path(__file__).parent / 'simulation_frontend'
 workspace_component = components.declare_component('quant_simulation_workspace', path=str(FRONTEND.resolve()))
-RESEARCH = {'模拟账户', '红利高抛低吸', '攻守轮动', '复合攻守轮动', '因子实验', '模型回测'}
+RESEARCH = {'模拟账户', '红利高抛低吸', '攻守轮动', '复合攻守轮动', '极值反抽抄底', '因子实验', '模型回测'}
 
 
 def clean(value):
@@ -43,6 +43,17 @@ def frontend_config(account):
             overheat=p.get('th_overheat', 0.20) * 100,
             neutral=p.get('th_neutral', 0.35) * 100,
         )
+    if account['strategy_type'] == 'bottom_fishing':
+        return dict(
+            attack=p.get('tech_symbol', 'sz159915'),
+            defense=p.get('bond_symbol', 'sh511260'),
+            lookback=p.get('lookback_window', 20),
+            erpThreshold=p.get('erp_threshold', 0.05) * 100,
+            biasThreshold=p.get('bias_threshold', -0.035) * 100,
+            takeProfit=p.get('take_profit', 0.08) * 100,
+            stopLoss=p.get('stop_loss', -0.035) * 100,
+            executionMode=p.get('execution_mode', 'next_open'),
+        )
     if account['strategy_type'] == 'rotation':
         return dict(attack=p['tech_symbol'], defense=p['def_symbol'], lookback=p['lookback_window'])
     return dict(executionMode=p.get('execution_mode','tail'), defense=p.get('defensive_asset', 'cash'), low=p['threshold_low']*100, high=p['threshold_high']*100,
@@ -62,6 +73,17 @@ def backend_config(action):
             use_trend_filter=bool(c.get('useTrend', True)),
             th_overheat=float(c.get('overheat', 20)) / 100.0,
             th_neutral=float(c.get('neutral', 35)) / 100.0,
+        )
+    if action['strategy'] == 'bottom_fishing':
+        return 'bottom_fishing', dict(
+            tech_symbol=c.get('attack', 'sz159915'),
+            bond_symbol=c.get('defense', 'sh511260'),
+            lookback_window=int(c.get('lookback', 20)),
+            erp_threshold=float(c.get('erpThreshold', 5)) / 100.0,
+            bias_threshold=float(c.get('biasThreshold', -3.5)) / 100.0,
+            take_profit=float(c.get('takeProfit', 8)) / 100.0,
+            stop_loss=float(c.get('stopLoss', -3.5)) / 100.0,
+            execution_mode=c.get('executionMode', 'next_open'),
         )
     if action['strategy'] == 'rotation':
         return 'rotation', dict(tech_symbol=c['attack'], def_symbol=c['defense'], lookback_window=int(c['lookback']))
@@ -86,19 +108,20 @@ def snapshot(store, selected=None):
         p = build_plan(store, a['id'], quotes=quotes, signal=sig)
         sig = p['signal']
         observation = None
-        if a['strategy_type'] in ('dividend_erp', 'compound_rotation'):
+        if a['strategy_type'] in ('dividend_erp', 'compound_rotation', 'bottom_fishing'):
             def observation_signal(mode):
                 if not all(price and price > 0 for _, price in prices):
                     return {'valid': False, 'error': '行情不完整，暂无法计算。'}
                 return cached_signal(a['strategy_type'], {**a['parameters'], 'execution_mode': mode}, prices, now().date().isoformat())
-            ref_sym = a['parameters'].get('tech_symbol', 'sz159915') if a['strategy_type'] == 'compound_rotation' else 'sh512890'
+            ref_sym = a['parameters'].get('tech_symbol', 'sz159915') if a['strategy_type'] in ('compound_rotation', 'bottom_fishing') else 'sh512890'
             observation = dict(live=observation_signal('tail'), confirmed=observation_signal('next_open'),
                                quoteTime=quotes.get(ref_sym, {}).get('quote_time', '未知'))
         port = p['portfolio']
         positions = [{**v, 'sellable': sellable(v, now().date().isoformat())} for v in port['positions']]
         def records(kind):
             return [{**r, 'time': r['timestamp'].replace('T', ' ')[:19]} for r in store.entries(a['id'], kind)]
-        rows.append(dict(id=a['id'], name=a['name'], revision=a['revision'], strategy='erp' if a['strategy_type']=='dividend_erp' else ('compound' if a['strategy_type']=='compound_rotation' else 'rotation'),
+        strat_key = 'erp' if a['strategy_type']=='dividend_erp' else ('compound' if a['strategy_type']=='compound_rotation' else ('bottom_fishing' if a['strategy_type']=='bottom_fishing' else 'rotation'))
+        rows.append(dict(id=a['id'], name=a['name'], revision=a['revision'], strategy=strat_key,
                          config=frontend_config(a), initial=a['initial_capital'], netCapital=a['net_capital'], cash=a['cash_available'],
                          auto=a['auto_trade'], running=a['running'], feeRate=a['fee_rate'], created=a['created_at'][:10],
                          observation=observation, positions=positions, portfolio=port, legacyOpening=store.legacy_opening_snapshot(a), trades=records('trade'), funds=records('fund'), events=records('event'),
