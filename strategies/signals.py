@@ -431,6 +431,7 @@ def compute_bottom_fishing_signal(
     bias_threshold=-0.035,
     take_profit=0.08,
     stop_loss=-0.035,
+    require_bullish=True,
     current_holding="bond",
     entry_price=None,
     live_quotes=None,
@@ -485,7 +486,7 @@ def compute_bottom_fishing_signal(
     erp_val = float(baseline["erp"])
 
     # 3. 抄底状态机研判
-    is_bottom_signal = (erp_pct <= erp_threshold) and (tech_bias <= bias_threshold) and is_bullish
+    is_bottom_signal = (erp_pct <= erp_threshold) and (tech_bias <= bias_threshold) and (is_bullish if require_bullish else True)
     
     # 判断当前应持有标的
     target_symbol = bond_symbol
@@ -511,15 +512,18 @@ def compute_bottom_fishing_signal(
         # 当前持有国债吃息
         if is_bottom_signal:
             target_symbol = tech_symbol
-            action_desc = f"触发极值反抽抄底买点！红利ERP分位 {erp_pct*100:.1f}% <= {erp_threshold*100:.1f}%，创业板偏离率 {tech_bias*100:.1f}% <= {bias_threshold*100:.1f}% 且收阳企稳，全仓买入创业板 ETF。"
+            cond_str = " 且收阳企稳" if require_bullish else "（纯左侧直接介入）"
+            action_desc = f"触发极值反抽抄底买点！红利ERP分位 {erp_pct*100:.1f}% <= {erp_threshold*100:.1f}%，创业板偏离率 {tech_bias*100:.1f}% <= {bias_threshold*100:.1f}%{cond_str}，全仓买入创业板 ETF。"
         else:
             target_symbol = bond_symbol
             if erp_pct > erp_threshold:
                 reason_not = f"红利低波 ERP 分位 {erp_pct*100:.1f}% 未达 <= {erp_threshold*100:.1f}% 极值区"
             elif tech_bias > bias_threshold:
                 reason_not = f"创业板偏离率 {tech_bias*100:.1f}% 尚未达到 <= {bias_threshold*100:.1f}% 极值超跌"
+            elif require_bullish and not is_bullish:
+                reason_not = "创业板尚未收出止跌阳线实体（等待企稳）"
             else:
-                reason_not = "创业板尚未收出止跌阳线实体"
+                reason_not = "未满足极值抄底综合条件"
             action_desc = f"未触发抄底条件（{reason_not}）；继续 100% 持有十年期国债 ETF 无风险生息待命。"
 
     return {

@@ -200,6 +200,7 @@ def strategy_signal(account, quotes, at):
             bias_threshold=float(p.get("bias_threshold", -0.035)),
             take_profit=float(p.get("take_profit", 0.08)),
             stop_loss=float(p.get("stop_loss", -0.035)),
+            require_bullish=bool(p.get("require_bullish", True)),
             current_holding=current_holding,
             entry_price=entry_price,
             live_quotes=signal_quotes,

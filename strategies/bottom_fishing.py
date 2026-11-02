@@ -39,6 +39,7 @@ def run_bottom_fishing_strategy(
     take_profit=0.08,
     stop_loss=-0.035,
     exit_ma20=True,
+    require_bullish=True,
     start_time="2019-01-18",
     end_time=None,
     benchmark="sh000300",
@@ -116,7 +117,7 @@ def run_bottom_fishing_strategy(
         p_bias = prev_row["bias20"]
         p_bullish = prev_row["is_bullish"]
         
-        buy_signal = (p_erp <= erp_threshold) and (p_bias <= bias_threshold) and p_bullish
+        buy_signal = (p_erp <= erp_threshold) and (p_bias <= bias_threshold) and (p_bullish if require_bullish else True)
         
         # 交易执行
         if position == "bond":

@@ -1345,6 +1345,7 @@ elif strategy_mode == "极值反抽抄底":
             stop_loss = preferences.slider("硬性止损阈值 (%)", min_value=-15.0, max_value=-0.5, value=-3.5, step=0.5) / 100.0
 
         exit_ma20 = preferences.checkbox("反弹收复 MA 均线离场", value=True)
+        require_bullish = preferences.checkbox("必须收阳企稳确认 (取消勾选即开启纯左侧极值抄底，建议BIAS设为-4%左右)", value=True)
 
         st.markdown("### 费用与回测周期")
         c_fee1, c_fee2 = st.columns(2)
@@ -1390,6 +1391,7 @@ elif strategy_mode == "极值反抽抄底":
     tech_name = tech_options.get(selected_tech, selected_tech).split()[0]
     bond_name = bond_options.get(selected_bond, selected_bond).split()[0]
     exec_desc = "前日信号 · 次日开盘价" if execution_mode == "next_open" else "当日尾盘实时撮合"
+    bullish_desc = "右侧收阳企稳" if require_bullish else "纯左侧直接介入"
     st.markdown(
         f"""
         <div class="research-note-bar">
@@ -1397,7 +1399,7 @@ elif strategy_mode == "极值反抽抄底":
             <span>抄底标的 <b>{tech_name}</b></span>
             <span>闲置防守 <b>{bond_name}</b></span>
             <span>雷达条件 <b>ERP分位 ≤ {erp_threshold*100:.1f}%</b></span>
-            <span>买入条件 <b>BIAS{lookback_window} ≤ {bias_threshold*100:.1f}% 且收阳</b></span>
+            <span>买入条件 <b>BIAS{lookback_window} ≤ {bias_threshold*100:.1f}% ({bullish_desc})</b></span>
             <span>离场机制 <b>止盈 +{take_profit*100:.1f}% / 止损 {stop_loss*100:.1f}% / 收复MA{lookback_window}</b></span>
             <span>撮合时点 <b>{exec_desc}</b></span>
         </div>
@@ -1414,6 +1416,7 @@ elif strategy_mode == "极值反抽抄底":
         bias_threshold=bias_threshold,
         take_profit=take_profit,
         stop_loss=stop_loss,
+        require_bullish=require_bullish,
         confirmed=True
     )
     if latest_sig.get("valid"):
@@ -1427,7 +1430,7 @@ elif strategy_mode == "极值反抽抄底":
                     <strong style="color:#315bd6; font-size:13px;">极值反抽抄底 · 最新策略观察 ({latest_sig.get('historical_asof', '最新')})</strong>
                     <p style="margin:3px 0 0 0; font-size:12px; color:#475569;">
                         最新状态：<b>{'🎯 触发抄底买入信号' if is_bottom else '🛡️ 持有国债生息待命'}</b> · 当前目标标的：<b>{tgt_name} (100% 仓位)</b>。<br>
-                        指标监控：红利低波 ERP 历史分位 <b>{latest_sig.get('erp_pct', 0)*100:.1f}%</b> (阈值 ≤ {erp_threshold*100:.1f}%) · 创业板 {lookback_window}日偏离率 BIAS <b>{latest_sig.get('tech_bias', 0)*100:+.2f}%</b> (超跌阈值 ≤ {bias_threshold*100:.1f}%) · K线形态：<b>{'企稳收阳' if latest_sig.get('is_bullish') else '未收阳'}</b>。<br>
+                        指标监控：红利低波 ERP 历史分位 <b>{latest_sig.get('erp_pct', 0)*100:.1f}%</b> (阈值 ≤ {erp_threshold*100:.1f}%) · 创业板 {lookback_window}日偏离率 BIAS <b>{latest_sig.get('tech_bias', 0)*100:+.2f}%</b> (超跌阈值 ≤ {bias_threshold*100:.1f}%) · K线形态：<b>{'企稳收阳' if latest_sig.get('is_bullish') else '未收阳'} ({bullish_desc})</b>。<br>
                         决策依据：{latest_sig.get('description', '')}
                     </p>
                 </div>
@@ -1445,7 +1448,7 @@ elif strategy_mode == "极值反抽抄底":
     cost_rate = (open_cost_bp + close_cost_bp) / 20000.0
 
     @st.cache_data(show_spinner=False)
-    def _get_cached_bottom_data(tech_sym, bond_sym, lookback, erp_th, bias_th, tp, sl, ma_exit, start_d, end_d, bench_sym, cost_r):
+    def _get_cached_bottom_data(tech_sym, bond_sym, lookback, erp_th, bias_th, tp, sl, ma_exit, req_bull, start_d, end_d, bench_sym, cost_r):
         return run_bottom_fishing_strategy(
             tech_symbol=tech_sym,
             bond_symbol=bond_sym,
@@ -1455,6 +1458,7 @@ elif strategy_mode == "极值反抽抄底":
             take_profit=tp,
             stop_loss=sl,
             exit_ma20=ma_exit,
+            require_bullish=req_bull,
             start_time=str(start_d),
             end_time=str(end_d),
             benchmark=bench_sym,
@@ -1473,6 +1477,7 @@ elif strategy_mode == "极值反抽抄底":
                     take_profit=take_profit,
                     stop_loss=stop_loss,
                     exit_ma20=exit_ma20,
+                    require_bullish=require_bullish,
                     start_time="2019-01-18",
                     end_time=latest_research_day,
                     benchmark=benchmark,
@@ -1496,6 +1501,7 @@ elif strategy_mode == "极值反抽抄底":
             take_profit,
             stop_loss,
             exit_ma20,
+            require_bullish,
             "2019-01-18",
             latest_research_day,
             benchmark,

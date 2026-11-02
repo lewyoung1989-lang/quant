@@ -41,7 +41,7 @@ def defaults(strategy, legacy=False):
         return {
             "tech_symbol": "sz159915", "bond_symbol": "sh511260",
             "lookback_window": 20, "erp_threshold": 0.05, "bias_threshold": -0.035,
-            "take_profit": 0.08, "stop_loss": -0.035, "execution_mode": "next_open"
+            "take_profit": 0.08, "stop_loss": -0.035, "require_bullish": True, "execution_mode": "next_open"
         }
     return {"tech_symbol": "sh588380", "def_symbol": "sh511010", "lookback_window": 20}
 
@@ -99,6 +99,7 @@ def validate_config(strategy, config):
         config.setdefault("bias_threshold", -0.035)
         config.setdefault("take_profit", 0.08)
         config.setdefault("stop_loss", -0.035)
+        config.setdefault("require_bullish", True)
         config.setdefault("execution_mode", "next_open")
 
     expected = defaults(strategy)

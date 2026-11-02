@@ -52,6 +52,7 @@ def frontend_config(account):
             biasThreshold=p.get('bias_threshold', -0.035) * 100,
             takeProfit=p.get('take_profit', 0.08) * 100,
             stopLoss=p.get('stop_loss', -0.035) * 100,
+            requireBullish=p.get('require_bullish', True),
             executionMode=p.get('execution_mode', 'next_open'),
         )
     if account['strategy_type'] == 'rotation':
@@ -83,6 +84,7 @@ def backend_config(action):
             bias_threshold=float(c.get('biasThreshold', -3.5)) / 100.0,
             take_profit=float(c.get('takeProfit', 8)) / 100.0,
             stop_loss=float(c.get('stopLoss', -3.5)) / 100.0,
+            require_bullish=bool(c.get('requireBullish', True)),
             execution_mode=c.get('executionMode', 'next_open'),
         )
     if action['strategy'] == 'rotation':
