@@ -177,9 +177,14 @@ def notify_daily_plans(store, force=False):
     total_orders = 0
     highlight_actions = []
 
+    plan_at = now() + dt.timedelta(days=1) if is_evening else now()
+    pipeline_signals = pipeline.get("signals") or {}
+
     for a in accounts:
         try:
-            plan = build_plan(store, a["id"], quotes=quotes, at=now())
+            sig_info = pipeline_signals.get(a["id"], {})
+            cached_sig = sig_info.get("signal") if sig_info.get("status") == "成功" else None
+            plan = build_plan(store, a["id"], quotes=quotes, at=plan_at, signal=cached_sig)
             sig = plan.get("signal")
             acc_sections.append(format_account_plan_markdown(a, plan, sig))
             orders = plan.get("orders") or []
