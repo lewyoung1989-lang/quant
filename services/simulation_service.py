@@ -137,8 +137,6 @@ def strategy_signal(account, quotes, at):
         from strategies.signals import compute_compound_rotation_signal
         signal_quotes = quotes
         confirmed = p.get("execution_mode") == "next_open"
-        if confirmed:
-            signal_quotes = {symbol: {**quote, "price": quote.get("prev_close") or quote.get("price")} for symbol, quote in quotes.items()}
         
         # 提取当前防守持仓配比，以驱动 2.5% 不对称防抖状态机
         div_symbol = p.get("div_symbol", "sh512890")
@@ -189,8 +187,6 @@ def strategy_signal(account, quotes, at):
                 
         signal_quotes = quotes
         confirmed = p.get("execution_mode") == "next_open"
-        if confirmed:
-            signal_quotes = {symbol: {**quote, "price": quote.get("prev_close") or quote.get("price")} for symbol, quote in quotes.items()}
             
         result = compute_bottom_fishing_signal(
             tech_symbol=tech_symbol,
