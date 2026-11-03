@@ -76,6 +76,8 @@ def symbols_for(account):
         symbols = {p["tech_symbol"], p.get("div_symbol", "sh512890"), p.get("bond_symbol", p.get("def_symbol", "sh511260"))}
     elif account["strategy_type"] == "bottom_fishing":
         symbols = {p.get("tech_symbol", "sz159915"), p.get("bond_symbol", "sh511260")}
+        if "tech_weights" in p:
+            symbols |= set(p["tech_weights"].keys())
     else:
         symbols = {p["tech_symbol"], p["def_symbol"]} if account["strategy_type"] == "rotation" else {"sh512890", "sh511260"}
     return sorted(symbols | {p["symbol"] for p in account["positions"] if p["shares"]})
@@ -174,16 +176,18 @@ def strategy_signal(account, quotes, at):
         from strategies.signals import compute_bottom_fishing_signal
         tech_symbol = p.get("tech_symbol", "sz159915")
         bond_symbol = p.get("bond_symbol", "sh511260")
+        tech_weights = p.get("tech_weights") or {tech_symbol: 1.0}
         
         # 寻找当前持仓状态与成本价
-        tech_shares = next((pos["shares"] for pos in account.get("positions", []) if pos["symbol"] == tech_symbol), 0)
+        tech_shares = sum(pos["shares"] for pos in account.get("positions", []) if pos["symbol"] in tech_weights)
         current_holding = "tech" if tech_shares > 0 else "bond"
         
-        # 提取创业板入场成本价（若有持仓）
+        # 提取进攻标的入场成本价（若有持仓）
         entry_price = None
         for pos in account.get("positions", []):
-            if pos["symbol"] == tech_symbol and pos.get("lots"):
-                entry_price = float(quotes.get(tech_symbol, {}).get("prev_close") or quotes.get(tech_symbol, {}).get("price") or 1.0)
+            if pos["symbol"] in tech_weights and pos.get("lots"):
+                entry_price = float(quotes.get(pos["symbol"], {}).get("prev_close") or quotes.get(pos["symbol"], {}).get("price") or 1.0)
+                break
                 
         signal_quotes = quotes
         confirmed = p.get("execution_mode") == "next_open"
@@ -205,6 +209,12 @@ def strategy_signal(account, quotes, at):
         )
         if not result.get("valid"):
             raise AccountError(result.get("error", "极值抄底信号不可用。"))
+        if len(tech_weights) > 1 and result.get("is_bottom_signal"):
+            result["weights"] = tech_weights
+        elif result.get("target_symbol") == bond_symbol:
+            result["weights"] = {bond_symbol: 1.0}
+        else:
+            result["weights"] = tech_weights
         return result
     if account["strategy_type"] == "rotation":
         from strategies.signals import compute_rotation_signal
@@ -257,10 +267,11 @@ def allocation(account, signal, quotes, at):
     if account['strategy_type'] == 'compound_rotation':
         return allocate_multi_asset(account, signal.get('weights', {}), quotes, at, port)
     if account['strategy_type'] == 'bottom_fishing':
-        tech_sym = account['parameters'].get('tech_symbol', 'sz159915')
-        bond_sym = account['parameters'].get('bond_symbol', 'sh511260')
+        p = account['parameters']
+        bond_sym = p.get('bond_symbol', 'sh511260')
+        tech_weights = p.get('tech_weights') or {p.get('tech_symbol', 'sz159915'): 1.0}
         tgt = signal.get('target_symbol', bond_sym)
-        weights = {tech_sym: 1.0 if tgt == tech_sym else 0.0, bond_sym: 1.0 if tgt == bond_sym else 0.0}
+        weights = {bond_sym: 1.0} if tgt == bond_sym else (signal.get('weights') or tech_weights)
         return allocate_multi_asset(account, weights, quotes, at, port)
     if account['strategy_type'] == 'dividend_erp' and account['parameters'].get('defensive_asset') == 'sh511260':
         return allocate_erp_bond(account, signal, quotes, at, port)

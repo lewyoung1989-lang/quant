@@ -103,7 +103,8 @@ def validate_config(strategy, config):
         config.setdefault("execution_mode", "next_open")
 
     expected = defaults(strategy)
-    if set(config) != set(expected):
+    allowed_keys = set(expected) | ({"tech_weights"} if strategy == "bottom_fishing" else set())
+    if not (set(expected) <= set(config) <= allowed_keys):
         raise AccountError("策略参数不完整，请重新填写。")
     if strategy == "rotation":
         if config["tech_symbol"] not in ATTACKS or config["def_symbol"] not in DEFENSES:
@@ -129,6 +130,16 @@ def validate_config(strategy, config):
             raise AccountError("止损阈值须在 -20%–-1% 之间。")
         if config["execution_mode"] not in ("tail", "next_open"):
             raise AccountError("请选择尾盘实时或次日开盘执行。")
+        if "tech_weights" in config:
+            if not isinstance(config["tech_weights"], dict) or not config["tech_weights"]:
+                raise AccountError("进攻标的权重配置无效。")
+            for sym, w in config["tech_weights"].items():
+                if sym not in ATTACKS:
+                    raise AccountError(f"标的 {sym} 不在支持的进攻列表中。")
+                if not (0.0 < float(w) <= 1.0):
+                    raise AccountError("各标的权重须大于 0 且不超过 100%。")
+            if abs(sum(config["tech_weights"].values()) - 1.0) > 1e-4:
+                raise AccountError("进攻标的权重之和须为 100%。")
     elif strategy == "compound_rotation":
         if config["tech_symbol"] not in ATTACKS:
             raise AccountError("请选择支持的进攻 ETF。")

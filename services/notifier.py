@@ -165,13 +165,13 @@ def notify_daily_plans(store, force=False):
     current_time = now().time()
     is_evening = current_time >= dt.time(19, 0)
 
-    # 区分夜间收盘定稿推送与日内推送，避免日内推送阻断 20:10 后的次日正式策略通知
+    # 区分夜间收盘定稿推送与日内推送，避免日内重复刷屏或阻断 20:10 后的次日正式策略通知
     if is_evening:
-        if not force and push_history.get("last_evening_asof") == data_asof and not push_history.get("has_orders"):
+        if not force and push_history.get("last_evening_asof") == data_asof:
             return True, f"截至 {data_asof} 的定稿夜间策略已推送，跳过重复推送"
     else:
-        if not force and push_history.get("last_date") == today_str and not push_history.get("has_orders"):
-            return True, "今日已推送过无调仓通知，跳过重复推送"
+        if not force and push_history.get("last_date") == today_str:
+            return True, "今日已推送过交易日策略指令，跳过日内重复推送"
 
     symbols = sorted({s for a in accounts for s in symbols_for(a)})
     try:
