@@ -91,4 +91,8 @@ body.navigation-only .sidebar{justify-content:flex-start}
 .tomorrow-no-trade b{display:block;font-size:12px;font-weight:600}
 .tomorrow-no-trade p{margin:2px 0 0;font-size:11px;color:#4b7d5f;line-height:1.4}
 .after-close-btn{opacity:.85}
+.holdings-table td.positive{color:var(--red)}
+.holdings-table td.positive small{color:var(--red);opacity:.85}
+.holdings-table td.negative{color:var(--green)}
+.holdings-table td.negative small{color:var(--green);opacity:.85}
 

@@ -117,14 +117,42 @@ def quote_issues(quotes, symbols, at):
     return problems
 
 
-def portfolio(account, quotes):
+def compute_position_costs(account, trades):
+    """Calculate the weighted average cost price for currently held positions from trade history."""
+    costs = {}
+    for pos in account.get("positions", []):
+        sym = pos["symbol"]
+        total_shares = pos["shares"]
+        if total_shares <= 0:
+            continue
+        buy_trades = [t for t in trades if t.get("symbol") == sym and t.get("action") == "买入"]
+        needed = total_shares
+        total_cost = 0.0
+        counted = 0
+        for t in reversed(buy_trades):
+            take = min(needed, t.get("shares", 0))
+            total_cost += take * float(t.get("price", 0))
+            counted += take
+            needed -= take
+            if needed <= 0:
+                break
+        costs[sym] = round(total_cost / counted, 4) if counted > 0 else None
+    return costs
+
+
+def portfolio(account, quotes, trades=None):
     positions, complete, value = [], True, 0.0
+    costs = compute_position_costs(account, trades) if trades is not None else {}
     for p in account["positions"]:
         price = positive_price(quotes.get(p["symbol"], {}))
         mv = round(price * p["shares"], 2) if price is not None else None
         complete = complete and mv is not None
         value += mv or 0
+        c = costs.get(p["symbol"])
+        pnl_pct = round((price - c) / c * 100, 2) if (c and price) else None
+        pnl_amt = round((price - c) * p["shares"], 2) if (c and price) else None
         positions.append({**p, "name": ASSETS.get(p["symbol"], p["symbol"]), "price": price, "value": mv,
+                          "cost": c, "pnl_pct": pnl_pct, "pnl_amt": pnl_amt,
                           "quote_time": quotes.get(p["symbol"], {}).get("quote_time", "未取得报价")})
     total = round(account["cash_available"] + value, 2) if complete else None
     return {"positions": positions, "market_value": round(value, 2) if complete else None,
@@ -369,22 +397,24 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
     quotes = fetch_quotes(symbols) if quotes is None else quotes
     mode = a["parameters"].get("execution_mode", "tail")
     status = market_status(at, mode)
+    is_catchup = bool(is_session(at.date()) and dt.time(9, 35) <= at.time().replace(tzinfo=None) < dt.time(15, 0) and mode == "next_open")
     reasons = ([] if a["running"] else ["账户已暂停运行。"])
-    if not status["ready"]:
+    if not status["ready"] and not is_catchup:
         reasons.append(status["reason"])
     pipeline = store.metadata("pipeline")
     if pipeline and (not pipeline.get("ready") or pipeline.get("target") != previous_session(at.date())):
         reasons.append("每日数据任务尚未补齐前一交易日数据，等待更新后再执行。")
     reasons.extend(quote_issues(quotes, symbols, at))
     reasons.extend(f"未配置 {s} 的交易规则，不能执行该持仓。" for s in symbols if s not in ASSETS)
-    port = portfolio(a, quotes)
+    trades_data = store.entries(account_id, "trade") if store else None
+    port = portfolio(a, quotes, trades=trades_data)
     orders, remaining, error = [], a["cash_available"], None
     try:
         usable_quotes = {}
         for s in symbols:
             q = dict(quotes.get(s, {}))
             p = positive_price(q)
-            if p is None and not status["ready"]:
+            if p is None and not status["ready"] and not is_catchup:
                 # 盘前竞价或夜间非决策窗，若实时最新价为0或未就绪，允许回退至昨收价试算
                 p = positive_price({'price': q.get('prev_close')})
             if p is None:
@@ -402,7 +432,7 @@ def build_plan(store, account_id, quotes=None, at=None, signal=None):
                 and str(quotes.get(s, {}).get('quote_time', '')).startswith(at.date().isoformat()) 
                 for s in symbols
             )
-            if status["ready"]:
+            if status["ready"] or is_catchup:
                 if not has_today_open:
                     raise AccountError('当日开盘价尚未发布或日期不符，禁止使用昨收价替代。')
                 execution_quotes = {s: {**q, 'price': q.get('open')} for s, q in quotes.items()}
@@ -449,7 +479,8 @@ def execute_plan(store, account_id, expected_plan_id, request_id, automatic=Fals
             committed_at = local_time()
             status = market_status(committed_at, a["parameters"].get("execution_mode", "tail"))
             timing = quote_issues({s: {"price": 1, "quote_time": t} for s, t in plan["quote_times"].items()}, list(plan["quote_times"]), committed_at)
-            if not status["ready"] or timing:
+            is_catchup = bool(is_session(committed_at.date()) and dt.time(9, 35) <= committed_at.time().replace(tzinfo=None) < dt.time(15, 0) and a["parameters"].get("execution_mode") == "next_open")
+            if (not status["ready"] and not is_catchup) or timing:
                 raise AccountError("执行时窗口或行情时效发生变化，请刷新清单。")
         if a["revision"] != plan["revision"] or not a["running"] or (automatic and not a["auto_trade"]):
             raise AccountError("账户配置已变化或自动执行已关闭，请重新核对。")
@@ -496,14 +527,22 @@ def worker_tick(store, at=None):
     status = market_status(at)
     accounts = [a for a in store.list_accounts() if a["auto_trade"] and a["running"]]
     report = {"heartbeat": at.isoformat(), "status": "运行中", "message": status["reason"], "accounts": len(accounts)}
-    if is_session(at.date()) and at.time().replace(tzinfo=None) >= dt.time(9,35):
+    # 收盘后(>=15:00) 若全天仍未完成次日开盘调仓，记录受阻日志
+    if is_session(at.date()) and at.time().replace(tzinfo=None) >= dt.time(15, 0):
         for account in accounts:
             if account['parameters'].get('execution_mode') == 'next_open':
                 key = f"auto:{account['id']}:{at.date().isoformat()}:{account['settings_version']}"
                 if not store.receipt(key):
-                    store.record_event(account['id'], '早盘窗口已结束', '今日未完成开盘模拟执行；不在尾盘补单，等待下一交易日有效窗口。', '受阻', 'missed:'+key)
+                    store.record_event(account['id'], '今日开盘调仓未执行', '今日全天未完成开盘模拟执行；已收盘，等待下一交易日窗口。', '受阻', 'missed:'+key)
     due = [a for a in accounts if market_status(at, a["parameters"].get("execution_mode", "tail"))["ready"]]
-    report["message"] = "按账户执行时点检查：次日开盘 09:30–09:35；尾盘 14:45–14:55。"
+    # 自动盘中补单机制：若处于 09:35~15:00 交易时段，且开盘模式账户尚未完成今日调仓，自动按开盘价补单执行
+    if is_session(at.date()) and dt.time(9, 35) <= at.time().replace(tzinfo=None) < dt.time(15, 0):
+        for a in accounts:
+            if a["parameters"].get("execution_mode") == "next_open":
+                key = f"auto:{a['id']}:{at.date().isoformat()}:{a['settings_version']}"
+                if not store.receipt(key) and a not in due:
+                    due.append(a)
+    report["message"] = "按账户执行时点检查：次日开盘 09:30–09:35（盘中按开盘价自动补单）；尾盘 14:45–14:55。"
     if due:
         symbols = sorted({s for a in due for s in symbols_for(a)})
         quotes = fetch_quotes(symbols)
